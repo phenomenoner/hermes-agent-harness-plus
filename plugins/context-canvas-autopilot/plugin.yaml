@@ -1,0 +1,6 @@
+name: context-canvas-autopilot
+version: 0.1.0
+description: "Lightweight policy hook that starts a local Task Canvas after long/large tool-use patterns and offloads high-signal evidence."
+author: "Hermes Agent"
+hooks:
+  - post_tool_call

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local runtime state and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.sqlite
+*.db
+*.log
+logs/
+.data/
+data/raw/
+data/private/
+/context-canvas/
+/qdrant_storage/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

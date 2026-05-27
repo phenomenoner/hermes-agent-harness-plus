@@ -1,0 +1,23 @@
+# Notices and Third-Party Pointers
+
+This repository is MIT licensed and contains original glue code, operational
+checklists, and public-facing documentation for extending Hermes Agent.
+
+No third-party source code is vendored here. The tools in this repository point
+to, import, or interoperate with the projects below:
+
+- Hermes Agent — https://github.com/NousResearch/hermes-agent — MIT License.
+  Tested locally against Hermes Agent v0.14.0, source commit `458a94e42`.
+- MemPalace — https://github.com/MemPalace/mempalace — MIT License.
+  Mentioned as an optional memory sidecar and documentation target.
+- Qdrant — https://github.com/qdrant/qdrant — Apache-2.0 License.
+  Tested locally against Qdrant server 1.17.1.
+- Model Context Protocol Python SDK — https://github.com/modelcontextprotocol/python-sdk
+  — MIT License. Minimum tested dependency range: `mcp>=1.22.0`; local
+  validation used `mcp` 1.26.0.
+- FastEmbed — https://github.com/qdrant/fastembed — Apache-2.0 License.
+  Minimum documented dependency range: `fastembed>=0.8.0`. Used by the optional
+  Qdrant indexing/search scripts when installed.
+
+If you add a new adapter or script that copies source from another project,
+record the source, version, and license in this file before publishing.
