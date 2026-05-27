@@ -1,30 +1,30 @@
 # Hermes Agent Harness Plus
 
-A small public toolbox for people who want Hermes Agent to feel steadier during
-long, tool-heavy work.
+A cheerful companion toolbox for people who want Hermes Agent work to be easier
+to follow, search, and share.
 
-In one sentence: **Harness Plus adds evidence, recall, and publishing hygiene
-around Hermes Agent without changing Hermes Agent itself.**
+In one sentence: **Harness Plus adds lightweight evidence trails, local recall,
+and ready-to-use helper pieces around Hermes Agent without changing Hermes Agent
+itself.**
 
 ## The 30-second story
 
-Hermes Agent is already a capable agent runtime. This repository is the extra
-harness we keep around it: tiny adapters, optional plugins, memory sidecars,
-ops rules, and reusable skills that make work easier to audit and easier to
-share.
+Long agent sessions can move fast. A tool call creates a useful clue, a test log
+answers a question, and ten minutes later the important part is buried in the
+scrollback.
+
+Harness Plus gives Hermes Agent a small outer harness: optional adapters,
+plugins, sidecars, skills, and checklists that help keep the work tidy.
 
 The first bundle focuses on three habits:
 
-- **Keep the map, not the mess.** A Task Canvas stores compact progress nodes
-  while raw logs and evidence live in referenced files.
-- **Recall locally.** Qdrant sidecars index public-safe skills and recent
-  sessions so an agent can search its own working history on your machine.
-- **Publish safely.** Checklists and labels keep shared harness code separate
-  from private identity, private channels, credentials, and local-only projects.
-
-This is **not** a personality pack, a private memory closet, or a dump of one
-operator's system. It is a public-facing toolkit that other Hermes Agent users
-can inspect, fork, and adapt.
+- **Keep the map.** A Task Canvas stores compact progress notes while detailed
+  evidence lives in referenced files.
+- **Find it again.** Qdrant helpers can index selected local skills and recent
+  sessions so the agent can search its own working history on your machine.
+- **Share cleanly.** Install notes, release routines, and reusable skills make it
+  easier to turn a useful local helper into something another Hermes Agent user
+  can try.
 
 ## What's inside
 
@@ -35,9 +35,8 @@ can inspect, fork, and adapt.
   active conversation.
 - `scripts/` — Qdrant and Context Canvas helper scripts for MCP, indexing, and
   health checks.
-- `skills/` — public Hermes skills that explain when and how to use the harness.
-- `ops-rules/` — release and contribution checklists for keeping public tools
-  public-safe.
+- `skills/` — Hermes skills that explain when and how to use the harness.
+- `ops-rules/` — release and contribution checklists for shared tools.
 - `docs/` — the GitHub Pages site plus installation and technical notes.
 
 ## Quick start
@@ -59,28 +58,16 @@ python -m pytest -q
 Use the Task Canvas CLI directly from the source tree:
 
 ```bash
-PYTHONPATH=packages/context-canvas python -m context_canvas.cli start   --session-id demo   --goal "Keep evidence for a long Hermes task"
+PYTHONPATH=packages/context-canvas python -m context_canvas.cli start \
+  --session-id demo \
+  --goal "Keep evidence for a long Hermes task"
 ```
 
-Then read the install guide:
+Then read the guide:
 
 - [Install and enable the harness](docs/install.md)
 - [Catalog of components](docs/catalog.md)
-- [Public-safety checklist](docs/public-safety-checklist.md)
-
-## Design boundary
-
-Harness Plus is intentionally boring:
-
-- no secrets;
-- no private chat logs;
-- no private agent identity or persona material;
-- no private A2A channels;
-- no local project datasets;
-- no production credentials;
-- no hard dependency on a single operator's machine.
-
-Adapters should either be generic or stay out of this repository.
+- [Release manifest](docs/release-manifest.md)
 
 ## License
 

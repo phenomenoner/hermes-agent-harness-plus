@@ -5,8 +5,8 @@ Use this before moving a local harness component into a public repository.
 ## 1. Classify the component
 
 - Generic adapter, plugin, sidecar, skill, or ops rule: candidate for this repo.
-- Private channel, private identity/persona, private memory, local-only project,
-  or production operation: do not publish here.
+- Runtime logs, account-specific integrations, local datasets, or production
+  operations: keep those outside the shared bundle.
 
 ## 2. Stage from a clean directory
 

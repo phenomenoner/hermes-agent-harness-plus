@@ -7,13 +7,13 @@ labels: ["type:enhancement", "needs-triage"]
 
 ## What should this help a Hermes Agent user do?
 
-## Why is it useful beyond one private setup?
+## Why is it useful beyond one local setup?
 
 ## Proposed shape
 
-## Public-safety notes
+## Share-ready notes
 
 - [ ] No secrets
-- [ ] No private identity/persona material
-- [ ] No private channel details
+- [ ] No raw chat logs or runtime databases
+- [ ] No account-specific integration details
 - [ ] No local-only datasets or project files

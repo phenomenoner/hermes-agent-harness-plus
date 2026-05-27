@@ -5,14 +5,14 @@ Initial public bundle:
 - Context Canvas package, CLI, and MCP server.
 - Context Canvas Autopilot plugin.
 - Qdrant skill/session indexing, MCP search, refresh, and health-check scripts.
-- Public skills for Task Canvas and Qdrant recall sidecars.
-- Public release checklist, installation guide, and GitHub Pages website.
+- Skills for Task Canvas and Qdrant recall sidecars.
+- Release checklist, installation guide, and GitHub Pages website.
 
-Explicitly excluded:
+Kept outside this bundle:
 
-- private identity/persona material;
-- private A2A channels;
-- private memory exports;
-- local project datasets;
-- production credentials;
-- machine-specific runtime state.
+- runtime databases, raw logs, and account-specific configuration;
+- credentials, cookies, tokens, or production secrets;
+- local project datasets and machine-specific state.
+
+The repository is meant to stay portable: install the pieces you want, then wire
+them to your own local Hermes Agent setup.

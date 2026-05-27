@@ -26,11 +26,11 @@
 ## Qdrant scripts
 
 - Path: `scripts/qdrant_*.py` and `scripts/qdrant_refresh_sessions_index.sh`
-- Purpose: index public-safe Hermes skills and recent user/assistant session text
+- Purpose: index selected Hermes skills and recent user/assistant session text
   into local Qdrant collections.
 - Default collections: `hermes_skills_multilingual_v1` and
   `hermes_sessions_recent_multilingual_v1`.
-- Privacy posture: session indexing skips system prompts and tool outputs by
+- Data handling: session indexing skips system prompts and tool outputs by
   default, redacts common secret patterns, and supports dry-run previews.
 
 ## Skills

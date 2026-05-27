@@ -5,44 +5,372 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hermes Agent Harness Plus</title>
   <style>
-    :root { color-scheme: light dark; --bg:#0f172a; --card:#111827; --ink:#f8fafc; --muted:#cbd5e1; --accent:#8b5cf6; --line:#334155; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:linear-gradient(135deg,#0f172a,#1e1b4b 55%,#312e81); color:var(--ink); }
-    main { max-width:980px; margin:0 auto; padding:72px 24px 56px; }
-    .pill { display:inline-flex; gap:8px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:8px 12px; color:var(--muted); background:rgba(15,23,42,.65); }
-    h1 { font-size:clamp(42px,8vw,82px); line-height:.95; letter-spacing:-.06em; margin:28px 0 20px; }
-    .lead { font-size:clamp(20px,3vw,28px); line-height:1.35; max-width:820px; color:#e2e8f0; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin:36px 0; }
-    .card { border:1px solid rgba(148,163,184,.25); border-radius:22px; padding:22px; background:rgba(15,23,42,.62); box-shadow:0 24px 80px rgba(0,0,0,.22); }
-    .card h2 { margin:0 0 10px; font-size:20px; }
-    .card p { margin:0; color:var(--muted); line-height:1.55; }
-    .cta { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px; }
-    a.button { color:white; text-decoration:none; border-radius:14px; padding:12px 16px; border:1px solid rgba(255,255,255,.16); background:rgba(139,92,246,.88); font-weight:700; }
-    a.secondary { background:rgba(15,23,42,.7); }
-    code { background:rgba(15,23,42,.9); padding:2px 6px; border-radius:7px; }
-    footer { margin-top:54px; color:#cbd5e1; font-size:14px; }
+    :root {
+      color-scheme: light;
+      --cream: #fff8ea;
+      --paper: rgba(255, 255, 255, 0.82);
+      --paper-solid: #ffffff;
+      --ink: #202033;
+      --muted: #62637a;
+      --pink: #ff7ab6;
+      --peach: #ffb36b;
+      --mint: #68d8b2;
+      --sky: #6bbcff;
+      --violet: #8e7dff;
+      --line: rgba(32, 32, 51, 0.12);
+      --shadow: 0 24px 70px rgba(87, 77, 150, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(255, 122, 182, 0.30), transparent 28rem),
+        radial-gradient(circle at 92% 8%, rgba(107, 188, 255, 0.36), transparent 26rem),
+        radial-gradient(circle at 62% 100%, rgba(104, 216, 178, 0.24), transparent 32rem),
+        linear-gradient(135deg, #fffdf8 0%, var(--cream) 42%, #f3f0ff 100%);
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 18rem;
+      height: 18rem;
+      border-radius: 999px;
+      filter: blur(12px);
+      opacity: 0.32;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before { right: -6rem; top: 16rem; background: #ffd166; }
+    body::after { left: -7rem; bottom: 5rem; background: #9bf6ff; }
+
+    main {
+      position: relative;
+      z-index: 1;
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 42px 0 56px;
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 62px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 850;
+      letter-spacing: -0.03em;
+    }
+
+    .spark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--pink), var(--violet));
+      color: white;
+      box-shadow: 0 12px 30px rgba(142, 125, 255, 0.24);
+    }
+
+    .navlinks {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .navlinks a,
+    .button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.68);
+      backdrop-filter: blur(14px);
+      color: var(--muted);
+      font-weight: 720;
+      box-shadow: 0 8px 24px rgba(84, 74, 120, 0.08);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+      gap: 38px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid rgba(142, 125, 255, 0.26);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: #5d55ac;
+      background: rgba(255, 255, 255, 0.70);
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: 0 10px 30px rgba(142, 125, 255, 0.10);
+    }
+
+    h1 {
+      max-width: 820px;
+      margin: 22px 0 18px;
+      font-size: clamp(44px, 8vw, 86px);
+      line-height: 0.94;
+      letter-spacing: -0.075em;
+    }
+
+    .rainbow {
+      background: linear-gradient(100deg, #ff6aa9 0%, #ff9f45 31%, #31c7a2 64%, #6b7cff 100%);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .lead {
+      max-width: 720px;
+      color: var(--muted);
+      font-size: clamp(19px, 2.4vw, 25px);
+      line-height: 1.42;
+      margin: 0;
+    }
+
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .button {
+      color: #202033;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .button:hover, .navlinks a:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(84, 74, 120, 0.14); }
+
+    .button:focus-visible,
+    .navlinks a:focus-visible,
+    .brand:focus-visible {
+      outline: 3px solid rgba(64, 115, 255, 0.46);
+      outline-offset: 4px;
+    }
+
+    .primary {
+      border: 0;
+      color: white;
+      background: linear-gradient(135deg, #f0529c, #6f63ea);
+    }
+
+    .showcase {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.56);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      transform: rotate(1deg);
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      overflow: hidden;
+      background: var(--paper-solid);
+    }
+
+    .panel-top {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 14px 16px;
+      background: linear-gradient(90deg, rgba(255,122,182,0.12), rgba(107,188,255,0.12));
+      border-bottom: 1px solid var(--line);
+    }
+
+    .dot { width: 11px; height: 11px; border-radius: 999px; }
+    .dot:nth-child(1) { background: var(--pink); }
+    .dot:nth-child(2) { background: var(--peach); }
+    .dot:nth-child(3) { background: var(--mint); }
+
+    .canvas-list { padding: 18px; display: grid; gap: 13px; }
+
+    .note {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      border: 1px solid rgba(32, 32, 51, 0.08);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,248,234,0.78));
+    }
+
+    .icon {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      background: #f1efff;
+      font-size: 20px;
+    }
+
+    .note strong { display: block; margin-bottom: 4px; }
+    .note span { color: var(--muted); line-height: 1.45; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 48px;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      min-height: 210px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 24px;
+      background: var(--paper);
+      box-shadow: 0 18px 50px rgba(84, 74, 120, 0.10);
+      backdrop-filter: blur(18px);
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -50px auto;
+      width: 150px;
+      height: 150px;
+      border-radius: 999px;
+      opacity: 0.22;
+      background: var(--bubble, var(--pink));
+    }
+
+    .emoji {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+      border-radius: 18px;
+      background: white;
+      box-shadow: 0 12px 30px rgba(84, 74, 120, 0.10);
+      font-size: 24px;
+    }
+
+    .card h2 { margin: 0 0 10px; font-size: 24px; letter-spacing: -0.035em; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.58; }
+
+    .strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 30px;
+      padding: 18px;
+      border: 1px dashed rgba(142, 125, 255, 0.35);
+      border-radius: 24px;
+      color: #5b5790;
+      background: rgba(255, 255, 255, 0.56);
+      font-weight: 780;
+    }
+
+    footer {
+      margin-top: 52px;
+      padding-top: 24px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+
+    @media (max-width: 860px) {
+      nav { align-items: flex-start; flex-direction: column; margin-bottom: 42px; }
+      .navlinks { justify-content: flex-start; }
+      .hero { grid-template-columns: 1fr; }
+      .showcase { transform: none; }
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      main { width: min(100% - 22px, 1120px); padding-top: 24px; }
+      h1 { font-size: clamp(40px, 16vw, 58px); }
+      .navlinks a { padding: 9px 12px; }
+      .showcase, .card { border-radius: 24px; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <div class="pill">Public-safe add-ons for Hermes Agent</div>
-    <h1>Evidence, recall, and release hygiene for agent work.</h1>
-    <p class="lead">Harness Plus is a small public toolbox around Hermes Agent. It packages optional adapters, MCP sidecars, skills, and ops rules that make long-running agent work easier to follow, search, and share.</p>
+    <nav aria-label="Primary">
+      <a class="brand" href="https://github.com/phenomenoner/hermes-agent-harness-plus">
+        <span class="spark" aria-hidden="true">✦</span>
+        <span>Hermes Agent Harness Plus</span>
+      </a>
+      <div class="navlinks">
+        <a href="install.md">Install</a>
+        <a href="catalog.md">Components</a>
+        <a href="technical/context-canvas.md">Technical notes</a>
+      </div>
+    </nav>
 
-    <section class="grid" aria-label="Highlights">
-      <div class="card"><h2>Keep the map</h2><p>Task Canvas stores concise progress nodes and keeps raw evidence in referenced files, so the agent does not have to carry every log in active context.</p></div>
-      <div class="card"><h2>Recall locally</h2><p>Qdrant helpers index public-safe skills and recent sessions on your own machine. Search stays local unless you choose otherwise.</p></div>
-      <div class="card"><h2>Publish safely</h2><p>Checklists and labels help keep reusable harness code separate from private identity, private channels, credentials, and local datasets.</p></div>
+    <section class="hero">
+      <div>
+        <div class="pill">✨ A friendly add-on kit for Hermes Agent</div>
+        <h1>Make agent work easier to <span class="rainbow">track, search, and share.</span></h1>
+        <p class="lead">Harness Plus adds optional helpers to Hermes Agent: task notes, local recall, install guides, and reusable skills that make long-running work easier to manage.</p>
+        <div class="cta">
+          <a class="button primary" href="install.md">Start with the install guide</a>
+          <a class="button" href="catalog.md">Explore components</a>
+          <a class="button" href="https://github.com/phenomenoner/hermes-agent-harness-plus#readme">Open on GitHub</a>
+        </div>
+      </div>
+
+      <aside class="showcase" aria-label="Toolkit preview">
+        <div class="panel">
+          <div class="panel-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="canvas-list">
+            <div class="note"><div class="icon">🗺️</div><div><strong>Task Canvas</strong><span>Keep compact progress notes while detailed evidence stays in referenced files.</span></div></div>
+            <div class="note"><div class="icon">🔎</div><div><strong>Local recall</strong><span>Search selected skills and recent sessions from your own Qdrant collections.</span></div></div>
+            <div class="note"><div class="icon">🧰</div><div><strong>Reusable pieces</strong><span>Copy only the plugin, script, or skill that helps your Hermes setup today.</span></div></div>
+          </div>
+        </div>
+      </aside>
     </section>
 
-    <div class="cta">
-      <a class="button" href="https://github.com/phenomenoner/hermes-agent-harness-plus#readme">Read the README</a>
-      <a class="button secondary" href="install.md">Install guide</a>
-      <a class="button secondary" href="catalog.md">Component catalog</a>
-      <a class="button secondary" href="public-safety-checklist.md">Safety checklist</a>
-    </div>
+    <section class="grid" aria-label="Highlights">
+      <div class="card" style="--bubble:#ff7ab6"><div class="emoji">🗺️</div><h2>Keep a task map</h2><p>Capture what happened, why it mattered, and where the evidence lives without dragging every log into active context.</p></div>
+      <div class="card" style="--bubble:#68d8b2"><div class="emoji">🔎</div><h2>Find it again</h2><p>Use local Qdrant helpers to make selected skills and recent work searchable from Hermes Agent.</p></div>
+      <div class="card" style="--bubble:#6bbcff"><div class="emoji">🌱</div><h2>Add helpers as you go</h2><p>Start with one helper, then add scripts, plugins, or skills as your workflow matures.</p></div>
+    </section>
+
+    <div class="strip">MIT licensed · optional components · local-first defaults · built for human-readable agent work</div>
 
     <footer>
-      MIT licensed. Built as a public-facing toolbox, not a private memory closet or persona pack.
+      Built as a companion toolbox for Hermes Agent users. Pick the pieces you need and leave the rest.
     </footer>
   </main>
 </body>
