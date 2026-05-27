@@ -17,6 +17,10 @@ hermes_skills_multilingual_v1
 hermes_sessions_recent_multilingual_v1
 ```
 
+The collection names are examples for a two-corpus setup. If you add more local
+corpora, keep each corpus in its own collection and make sure the ingest-time and
+query-time embedding models match.
+
 ## Privacy posture
 
 The session indexer:
@@ -29,3 +33,30 @@ The session indexer:
 
 Local recall is useful, but it is still an index of your text. Read the dry-run
 output before indexing.
+
+## Quiet health checks and restart calibration
+
+The watchdog script is designed for no-news-is-good-news scheduling:
+
+```bash
+python3 scripts/qdrant_recall_health_watchdog.py
+QDRANT_WATCHDOG_VERBOSE=1 python3 scripts/qdrant_recall_health_watchdog.py
+```
+
+A healthy non-verbose run prints nothing. A failing run prints the missing or
+unhealthy collections, observed point counts, and vector configuration.
+
+When Qdrant runs in Docker, a container restart can be a useful moment to
+re-validate recall. `scripts/qdrant_restart_calibration.sh` stores the last seen
+Docker `.State.StartedAt` value under `${HERMES_HOME:-~/.hermes}/qdrant/state`,
+runs the watchdog after a restart, and updates the marker only after a healthy
+calibration.
+
+```bash
+QDRANT_CONTAINER=qdrant-hermes scripts/qdrant_restart_calibration.sh
+```
+
+Set `QDRANT_REPAIR_CMD` if you want to chain a local repair command after a
+failed calibration. Keep repair commands environment-specific; the public helper
+only detects, verifies, and delegates repair so it does not make assumptions
+about your storage layout or corpus sources.

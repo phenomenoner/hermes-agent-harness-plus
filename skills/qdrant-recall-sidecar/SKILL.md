@@ -37,6 +37,7 @@ prompts unless you have reviewed and approved that data class.
 3. Recreate or upsert the collection only after previewing content.
 4. Add the Qdrant MCP sidecar to Hermes config.
 5. Verify collections, vector size, point count, and a real search result.
+6. Schedule the quiet watchdog, and use restart calibration if Qdrant runs in Docker.
 
 ## Common Pitfalls
 
@@ -45,6 +46,8 @@ prompts unless you have reviewed and approved that data class.
 3. Forgetting that local recall is still a searchable copy of text.
 4. Treating Qdrant as a replacement for curated memory. It is retrieval, not
    judgment.
+5. Trusting on-disk collection folders without checking the live Qdrant API after
+   a container restart.
 
 ## Verification Checklist
 
@@ -53,3 +56,4 @@ prompts unless you have reviewed and approved that data class.
 - [ ] Dry-run preview was reviewed before ingest.
 - [ ] MCP search returns compact, relevant results.
 - [ ] Health watchdog is silent when healthy and noisy when broken.
+- [ ] Docker restart calibration is enabled when Qdrant is containerized.

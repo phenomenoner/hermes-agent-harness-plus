@@ -21,7 +21,8 @@ The first bundle focuses on three habits:
 - **Keep the map.** A Task Canvas stores compact progress notes while detailed
   evidence lives in referenced files.
 - **Find it again.** Qdrant helpers can index selected local skills and recent
-  sessions so the agent can search its own working history on your machine.
+  sessions, then quietly check that local recall stays healthy after scheduled
+  refreshes or container restarts.
 - **Share cleanly.** Install notes, release routines, and reusable skills make it
   easier to turn a useful local helper into something another Hermes Agent user
   can try.

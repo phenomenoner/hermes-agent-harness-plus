@@ -25,13 +25,18 @@
 
 ## Qdrant scripts
 
-- Path: `scripts/qdrant_*.py` and `scripts/qdrant_refresh_sessions_index.sh`
+- Path: `scripts/qdrant_*.py`, `scripts/qdrant_refresh_sessions_index.sh`, and
+  `scripts/qdrant_restart_calibration.sh`
 - Purpose: index selected Hermes skills and recent user/assistant session text
-  into local Qdrant collections.
+  into local Qdrant collections, then check that recall is still live after
+  scheduled refreshes or container restarts.
 - Default collections: `hermes_skills_multilingual_v1` and
   `hermes_sessions_recent_multilingual_v1`.
 - Data handling: session indexing skips system prompts and tool outputs by
   default, redacts common secret patterns, and supports dry-run previews.
+- Health checks: the watchdog is quiet when collections are green; the restart
+  calibration wrapper records Docker `StartedAt` and reruns the watchdog after a
+  container restart before trusting recall.
 
 ## Skills
 

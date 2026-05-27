@@ -113,6 +113,27 @@ python scripts/qdrant_ingest_hermes_skills.py --dry-run
 
 Remove `--dry-run` when the preview is safe.
 
+For scheduled checks, keep successful runs quiet and alert only on failures. The
+watchdog validates that expected collections exist, are green, have points, and
+use the expected vector configuration:
+
+```bash
+python3 scripts/qdrant_recall_health_watchdog.py
+QDRANT_WATCHDOG_VERBOSE=1 python3 scripts/qdrant_recall_health_watchdog.py
+```
+
+If Qdrant runs in Docker, add the restart calibration wrapper to your scheduler.
+It records the container `StartedAt` timestamp and reruns the watchdog after a
+container restart before trusting recall again:
+
+```bash
+QDRANT_CONTAINER=qdrant-hermes \
+  scripts/qdrant_restart_calibration.sh
+```
+
+Optional: set `QDRANT_REPAIR_CMD` to chain your own local repair script after a
+failed calibration.
+
 ## 7. Install the public skills
 
 Once this repo is reachable from GitHub, a Hermes Agent user can install a skill
