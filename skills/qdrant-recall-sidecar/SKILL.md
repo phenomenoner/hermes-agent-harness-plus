@@ -1,7 +1,7 @@
 ---
 name: qdrant-recall-sidecar
 description: Use when adding, checking, or troubleshooting a local Qdrant recall sidecar for Hermes Agent skills or recent sessions. Prefer local-first indexing, dry-run previews, and privacy-preserving defaults.
-version: 1.0.0
+version: 1.0.1
 author: hermes-agent-harness-plus contributors
 license: MIT
 metadata:
@@ -38,6 +38,7 @@ prompts unless you have reviewed and approved that data class.
 4. Add the Qdrant MCP sidecar to Hermes config.
 5. Verify collections, vector size, point count, and a real search result.
 6. Schedule the quiet watchdog, and use restart calibration if Qdrant runs in Docker.
+7. If repair is needed, fix the smallest failing collection first, then verify quiet mode.
 
 ## Common Pitfalls
 
@@ -48,6 +49,10 @@ prompts unless you have reviewed and approved that data class.
    judgment.
 5. Trusting on-disk collection folders without checking the live Qdrant API after
    a container restart.
+6. Letting Docker CLI stalls or broad rebuild scripts turn a healthy Qdrant HTTP
+   endpoint into a scheduled-task timeout.
+7. Rebuilding every corpus when the watchdog only reports one `MISSING`
+   collection.
 
 ## Verification Checklist
 
@@ -57,3 +62,5 @@ prompts unless you have reviewed and approved that data class.
 - [ ] MCP search returns compact, relevant results.
 - [ ] Health watchdog is silent when healthy and noisy when broken.
 - [ ] Docker restart calibration is enabled when Qdrant is containerized.
+- [ ] Repair runs target the specific missing or unhealthy collection before any
+      full rebuild.

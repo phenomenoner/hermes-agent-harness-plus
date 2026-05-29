@@ -132,7 +132,14 @@ QDRANT_CONTAINER=qdrant-hermes \
 ```
 
 Optional: set `QDRANT_REPAIR_CMD` to chain your own local repair script after a
-failed calibration.
+failed calibration. The wrapper checks Qdrant over HTTP before reading Docker
+metadata, and Docker inspection is time-bounded so a slow Docker CLI does not
+create false scheduler failures.
+
+When a watchdog alert reports only `MISSING <collection>`, prefer rerunning the
+ingest or refresh job for that collection instead of rebuilding every corpus.
+Save full storage repair for unreachable Qdrant, unhealthy collections, or
+vector configuration drift.
 
 ## 7. Install the public skills
 

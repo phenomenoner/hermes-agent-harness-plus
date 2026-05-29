@@ -47,10 +47,12 @@ A healthy non-verbose run prints nothing. A failing run prints the missing or
 unhealthy collections, observed point counts, and vector configuration.
 
 When Qdrant runs in Docker, a container restart can be a useful moment to
-re-validate recall. `scripts/qdrant_restart_calibration.sh` stores the last seen
-Docker `.State.StartedAt` value under `${HERMES_HOME:-~/.hermes}/qdrant/state`,
-runs the watchdog after a restart, and updates the marker only after a healthy
-calibration.
+re-validate recall. `scripts/qdrant_restart_calibration.sh` runs the HTTP
+watchdog first, then checks Docker `.State.StartedAt` with a bounded timeout so a
+slow Docker CLI cannot turn a healthy Qdrant endpoint into a scheduler timeout.
+It stores the last seen timestamp under
+`${HERMES_HOME:-~/.hermes}/qdrant/state` and updates the marker only after a
+healthy calibration.
 
 ```bash
 QDRANT_CONTAINER=qdrant-hermes scripts/qdrant_restart_calibration.sh
@@ -60,3 +62,18 @@ Set `QDRANT_REPAIR_CMD` if you want to chain a local repair command after a
 failed calibration. Keep repair commands environment-specific; the public helper
 only detects, verifies, and delegates repair so it does not make assumptions
 about your storage layout or corpus sources.
+
+## Repair strategy
+
+Prefer the smallest repair that matches the watchdog output:
+
+- If the alert only says `MISSING <collection>`, rerun the ingest or refresh job
+  for that one collection.
+- If Qdrant is unreachable, a collection is not green, or vector size/distance is
+  wrong, stop and inspect the server, storage, and embedding configuration before
+  rebuilding multiple corpora.
+- After any repair, run the watchdog in verbose mode once and then in quiet mode
+  to confirm that healthy scheduled runs stay silent.
+
+This keeps local recall maintenance fast and avoids turning a single stale
+collection into an unnecessary full rebuild.
