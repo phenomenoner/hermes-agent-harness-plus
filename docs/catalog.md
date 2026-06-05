@@ -48,3 +48,6 @@
 
 - Path: `ops-rules/public-release-checklist.md`
 - Purpose: keep shared tools reusable and safe before a commit becomes public.
+- Path: `ops-rules/artifact-handoff-checklist.md`
+- Purpose: turn generated images, reports, docs, and bundles into portable
+  share-ready artifacts without leaking the private runtime that produced them.
