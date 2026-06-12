@@ -22,7 +22,7 @@ The first bundle focuses on three habits:
   evidence lives in referenced files.
 - **Find it again.** Qdrant helpers can index selected local skills and recent
   sessions, then quietly check that local recall stays healthy after scheduled
-  refreshes or container restarts.
+  refreshes, container starts, or restarts.
 - **Share cleanly.** Install notes, release routines, and reusable skills make it
   easier to turn a useful local helper into something another Hermes Agent user
   can try.

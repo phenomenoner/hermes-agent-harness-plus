@@ -122,6 +122,26 @@ python3 scripts/qdrant_recall_health_watchdog.py
 QDRANT_WATCHDOG_VERBOSE=1 python3 scripts/qdrant_recall_health_watchdog.py
 ```
 
+If Qdrant is normally a local Docker container, you can put a bounded recovery
+step before heavier repair work. It first checks the Qdrant HTTP endpoint, then
+uses Docker to start the named container, and tries one restart only if health
+does not return. On WSL it can optionally start Docker Desktop when the Windows
+paths are available:
+
+```bash
+QDRANT_CONTAINER=qdrant-hermes \
+  scripts/qdrant_bounded_start_restart.sh
+```
+
+Useful tuning knobs:
+
+```bash
+export QDRANT_DOCKER_CLI_TIMEOUT=8
+export QDRANT_DOCKER_START_WAIT_ATTEMPTS=90
+export QDRANT_READY_WAIT_ATTEMPTS=90
+export QDRANT_RESTART_WAIT_ATTEMPTS=60
+```
+
 If Qdrant runs in Docker, add the restart calibration wrapper to your scheduler.
 It records the container `StartedAt` timestamp and reruns the watchdog after a
 container restart before trusting recall again:

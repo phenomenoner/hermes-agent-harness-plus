@@ -1,7 +1,7 @@
 ---
 name: qdrant-recall-sidecar
 description: Use when adding, checking, or troubleshooting a local Qdrant recall sidecar for Hermes Agent skills or recent sessions. Prefer local-first indexing, dry-run previews, and privacy-preserving defaults.
-version: 1.0.1
+version: 1.1.0
 author: hermes-agent-harness-plus contributors
 license: MIT
 metadata:
@@ -37,8 +37,10 @@ prompts unless you have reviewed and approved that data class.
 3. Recreate or upsert the collection only after previewing content.
 4. Add the Qdrant MCP sidecar to Hermes config.
 5. Verify collections, vector size, point count, and a real search result.
-6. Schedule the quiet watchdog, and use restart calibration if Qdrant runs in Docker.
-7. If repair is needed, fix the smallest failing collection first, then verify quiet mode.
+6. Schedule the quiet watchdog.
+7. If Qdrant runs in Docker, use bounded start/restart for service bring-up and
+   restart calibration for post-restart recall verification.
+8. If repair is needed, fix the smallest failing collection first, then verify quiet mode.
 
 ## Common Pitfalls
 
@@ -53,6 +55,9 @@ prompts unless you have reviewed and approved that data class.
    endpoint into a scheduled-task timeout.
 7. Rebuilding every corpus when the watchdog only reports one `MISSING`
    collection.
+8. Mixing service bring-up with data repair. Start or restart the local Qdrant
+   container first; only rebuild collections after the watchdog still reports a
+   data or vector-configuration problem.
 
 ## Verification Checklist
 
@@ -61,6 +66,7 @@ prompts unless you have reviewed and approved that data class.
 - [ ] Dry-run preview was reviewed before ingest.
 - [ ] MCP search returns compact, relevant results.
 - [ ] Health watchdog is silent when healthy and noisy when broken.
+- [ ] Docker-backed Qdrant has a bounded start/restart path, when useful.
 - [ ] Docker restart calibration is enabled when Qdrant is containerized.
 - [ ] Repair runs target the specific missing or unhealthy collection before any
       full rebuild.

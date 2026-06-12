@@ -46,6 +46,22 @@ QDRANT_WATCHDOG_VERBOSE=1 python3 scripts/qdrant_recall_health_watchdog.py
 A healthy non-verbose run prints nothing. A failing run prints the missing or
 unhealthy collections, observed point counts, and vector configuration.
 
+When the failure is simply that a local Docker-backed Qdrant container is not
+running yet, use `scripts/qdrant_bounded_start_restart.sh` before heavier repair.
+The helper keeps the same quiet-on-success contract: it probes Qdrant over HTTP,
+selects a usable Docker CLI, starts the configured container, and performs at
+most one restart if health does not return. On WSL it can optionally launch
+Docker Desktop through PowerShell when the standard Windows paths are present.
+
+```bash
+QDRANT_CONTAINER=qdrant-hermes scripts/qdrant_bounded_start_restart.sh
+QDRANT_START_VERBOSE=1 QDRANT_CONTAINER=qdrant-hermes scripts/qdrant_bounded_start_restart.sh
+```
+
+Keep this helper focused on service bring-up. Collection rebuilds, re-ingest
+jobs, and storage repairs should remain separate commands that you call only
+after the watchdog output points to a data or configuration issue.
+
 When Qdrant runs in Docker, a container restart can be a useful moment to
 re-validate recall. `scripts/qdrant_restart_calibration.sh` runs the HTTP
 watchdog first, then checks Docker `.State.StartedAt` with a bounded timeout so a
