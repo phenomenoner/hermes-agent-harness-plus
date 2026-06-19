@@ -1,7 +1,7 @@
 ---
 name: qdrant-recall-sidecar
 description: Use when adding, checking, or troubleshooting a local Qdrant recall sidecar for Hermes Agent skills or recent sessions. Prefer local-first indexing, dry-run previews, and privacy-preserving defaults.
-version: 1.1.0
+version: 1.1.1
 author: hermes-agent-harness-plus contributors
 license: MIT
 metadata:
@@ -36,7 +36,7 @@ prompts unless you have reviewed and approved that data class.
 2. Dry-run the skill or session indexer.
 3. Recreate or upsert the collection only after previewing content.
 4. Add the Qdrant MCP sidecar to Hermes config.
-5. Verify collections, vector size, point count, and a real search result.
+5. Verify collections, vector size, point-count trend, and a real search result.
 6. Schedule the quiet watchdog.
 7. If Qdrant runs in Docker, use bounded start/restart for service bring-up and
    restart calibration for post-restart recall verification.
@@ -58,6 +58,9 @@ prompts unless you have reviewed and approved that data class.
 8. Mixing service bring-up with data repair. Start or restart the local Qdrant
    container first; only rebuild collections after the watchdog still reports a
    data or vector-configuration problem.
+9. Treating a tiny point-count drop in a rolling recent-session collection as a
+   rebuild trigger. First confirm API health, intended window bounds, and a known
+   topic search result.
 
 ## Verification Checklist
 
@@ -65,6 +68,8 @@ prompts unless you have reviewed and approved that data class.
 - [ ] Collection vector size matches the embedding model.
 - [ ] Dry-run preview was reviewed before ingest.
 - [ ] MCP search returns compact, relevant results.
+- [ ] Rolling-window point-count changes were interpreted with health and recall
+      results, not as standalone failure signals.
 - [ ] Health watchdog is silent when healthy and noisy when broken.
 - [ ] Docker-backed Qdrant has a bounded start/restart path, when useful.
 - [ ] Docker restart calibration is enabled when Qdrant is containerized.

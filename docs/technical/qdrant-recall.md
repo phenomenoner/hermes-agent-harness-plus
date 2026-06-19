@@ -34,6 +34,25 @@ The session indexer:
 Local recall is useful, but it is still an index of your text. Read the dry-run
 output before indexing.
 
+## Interpreting point-count drift
+
+Recent-session collections usually behave like rolling windows. A refresh may
+drop older chunks and add newer ones, so a small point-count change is not by
+itself a repair signal.
+
+Before rebuilding a collection, check three things together:
+
+1. **API health:** the collection exists, is green, and has the expected vector
+   size and distance.
+2. **Window intent:** the ingest window, maximum session count, and source query
+   still match what you meant to index.
+3. **Recall quality:** one or two known recent topics return relevant hits.
+
+Treat point counts as supporting evidence, not the source of truth. A tiny count
+drop with green status and good recall is usually normal window movement. A large
+unexpected drop, a zero-count collection, vector mismatch, or failed smoke search
+is a better reason to run the smallest targeted refresh.
+
 ## Quiet health checks and restart calibration
 
 The watchdog script is designed for no-news-is-good-news scheduling:
