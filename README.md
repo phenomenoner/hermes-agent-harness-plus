@@ -37,7 +37,8 @@ The first bundle focuses on three habits:
 - `scripts/` — Qdrant and Context Canvas helper scripts for MCP, indexing, and
   health checks.
 - `skills/` — Hermes skills that explain when and how to use the harness.
-- `ops-rules/` — release and contribution checklists for shared tools.
+- `ops-rules/` — release, artifact handoff, and scheduled-job checklists for
+  shared tools.
 - `docs/` — the GitHub Pages site plus installation and technical notes.
 
 ## Quick start

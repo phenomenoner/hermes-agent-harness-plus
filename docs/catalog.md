@@ -53,3 +53,6 @@
 - Path: `ops-rules/artifact-handoff-checklist.md`
 - Purpose: turn generated images, reports, docs, and bundles into portable
   share-ready artifacts without leaking the private runtime that produced them.
+- Path: `ops-rules/scheduled-agent-health-checklist.md`
+- Purpose: keep unattended agent jobs quiet on success, specific on failure, and
+  backed by source-level verification rather than scheduler status alone.
