@@ -43,7 +43,27 @@ Prefer deterministic commands that work in minimal shell environments. Avoid
 relying on interactive helpers or notebook-style execution paths inside an
 unattended runner.
 
-## 3. Inspect logs with a narrow window
+## 3. Resolve helper inputs explicitly
+
+Scheduled agents often run from a project directory, but the instructions they
+load may live somewhere else. Before treating a missing file warning as a job
+failure, confirm which layer owns the file.
+
+Good rules:
+
+- project files should be opened with repo-relative paths from the job's
+  configured workdir;
+- installed skill references should be loaded through the skill tooling, or by an
+  explicit skill-install path supplied by the operator;
+- runtime-generated receipts should go to a known artifact directory, not beside
+  the helper script by accident;
+- examples in public docs should use placeholders such as `<project-root>` or
+  `<skill-name>` instead of machine-specific paths.
+
+If a scheduled run mixes these layers, fix the prompt, script, or skill note so
+future runs know where each reference is expected to live.
+
+## 4. Inspect logs with a narrow window
 
 Use the smallest log scope that can answer the question:
 
@@ -62,7 +82,7 @@ Look for:
 - partial attempts that did not update the job's normal status field;
 - dependency failures that were swallowed by a wrapper script.
 
-## 4. Keep successful runs quiet
+## 5. Keep successful runs quiet
 
 For recurring maintenance, make the healthy path produce no output or a compact
 single-line receipt. Alert only when action is needed.
@@ -75,7 +95,7 @@ A good scheduled helper should:
 - keep repair commands separate from detection unless automatic repair is an
   explicit feature.
 
-## 5. Update the existing job before adding another one
+## 6. Update the existing job before adding another one
 
 When a recurring check needs better behavior, first improve the existing job,
 script, or prompt. Add a new scheduled job only when the cadence, destination, or
@@ -94,7 +114,7 @@ Overlap checked against:
 
 This prevents quiet scheduler sprawl and makes future cleanup easier.
 
-## 6. Close out with evidence
+## 7. Close out with evidence
 
 A useful closeout note says:
 
