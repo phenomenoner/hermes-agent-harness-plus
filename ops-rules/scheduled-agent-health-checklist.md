@@ -114,7 +114,23 @@ Overlap checked against:
 
 This prevents quiet scheduler sprawl and makes future cleanup easier.
 
-## 7. Close out with evidence
+## 7. Treat one-shot checks as temporary probes
+
+A one-shot scheduled check can be the right tool for verifying tomorrow's
+cleanup, a delayed webhook, or a post-maintenance observation. Keep it different
+from recurring maintenance:
+
+- before the scheduled time, record it as `pending`, not failed;
+- after the due time, verify the source result instead of trusting only the
+  scheduler's status field;
+- close, remove, or archive the probe after it has produced its evidence;
+- do not convert a one-shot probe into a recurring job unless the responsibility
+  really needs a cadence.
+
+This keeps short-lived follow-up checks useful without growing a second layer of
+maintenance jobs.
+
+## 8. Close out with evidence
 
 A useful closeout note says:
 
