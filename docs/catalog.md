@@ -33,8 +33,10 @@
   scheduled refreshes or container restarts.
 - Default collections: `hermes_skills_multilingual_v1` and
   `hermes_sessions_recent_multilingual_v1`.
-- Data handling: session indexing skips system prompts and tool outputs by
-  default, redacts common secret patterns, and supports dry-run previews.
+- Data handling: skill indexing skips hidden catalog directories and
+  lifecycle-marked inactive skills; session indexing skips system prompts and
+  tool outputs by default, redacts common secret patterns, and supports dry-run
+  previews.
 - Health checks: the watchdog is quiet when collections are green; the bounded
   start/restart helper can bring a local Docker-backed Qdrant container back up;
   the restart calibration wrapper records Docker `StartedAt` and reruns the

@@ -34,6 +34,21 @@ The session indexer:
 Local recall is useful, but it is still an index of your text. Read the dry-run
 output before indexing.
 
+## Keep skill recall aligned with the active catalog
+
+The skill indexer treats the Qdrant collection as a searchable projection of the
+active skill catalog. By default it:
+
+- discovers canonical `SKILL.md` files;
+- skips skills under hidden directories such as `.archive/` and
+  `.curator_backups/`;
+- skips skills whose frontmatter `status` is `retired`, `archived`, or
+  `deprecated`.
+
+After retiring or restoring skills, recreate the skills collection so stale
+points do not survive an upsert-only run. Verify the boundary with one positive
+search for an active skill and one negative search for a retired skill.
+
 ## Interpreting point-count drift
 
 Recent-session collections usually behave like rolling windows. A refresh may

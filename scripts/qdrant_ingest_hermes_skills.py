@@ -143,8 +143,15 @@ def split_markdown(text: str, max_chars: int = 1400, overlap: int = 180) -> list
 
 
 def iter_skill_files(root: Path) -> Iterable[Path]:
-    # Prefer canonical SKILL.md files; include standalone markdown references only if explicitly requested later.
-    yield from sorted(root.glob("**/SKILL.md"))
+    # Keep semantic recall aligned with the active catalog. Curator archives and
+    # backups live under hidden directories such as .archive/ and
+    # .curator_backups/; indexing them would make retired skills discoverable
+    # again even though Hermes no longer routes to them.
+    for path in sorted(root.glob("**/SKILL.md")):
+        rel = path.relative_to(root)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        yield path
 
 
 def stable_uuid(source: str, chunk_index: int, content_hash: str) -> str:
@@ -159,6 +166,9 @@ def build_chunks(root: Path, max_chars: int, overlap: int) -> list[Chunk]:
         except UnicodeDecodeError:
             raw = path.read_text(errors="replace")
         meta, body = parse_frontmatter(raw)
+        lifecycle_status = str(meta.get("status") or "").strip().casefold()
+        if lifecycle_status in {"retired", "archived", "deprecated"}:
+            continue
         skill_id = skill_id_for(path, root)
         category = category_for(skill_id)
         description = str(meta.get("description") or "")

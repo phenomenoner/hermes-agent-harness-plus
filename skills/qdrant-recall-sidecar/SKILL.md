@@ -1,7 +1,7 @@
 ---
 name: qdrant-recall-sidecar
 description: Use when adding, checking, or troubleshooting a local Qdrant recall sidecar for Hermes Agent skills or recent sessions. Prefer local-first indexing, dry-run previews, and privacy-preserving defaults.
-version: 1.1.1
+version: 1.1.2
 author: hermes-agent-harness-plus contributors
 license: MIT
 metadata:
@@ -61,6 +61,9 @@ prompts unless you have reviewed and approved that data class.
 9. Treating a tiny point-count drop in a rolling recent-session collection as a
    rebuild trigger. First confirm API health, intended window bounds, and a known
    topic search result.
+10. Letting archived or lifecycle-marked inactive skills re-enter active recall
+    during a collection rebuild. Keep hidden catalog directories and `retired`,
+    `archived`, or `deprecated` frontmatter out of the active skills collection.
 
 ## Verification Checklist
 
@@ -75,3 +78,5 @@ prompts unless you have reviewed and approved that data class.
 - [ ] Docker restart calibration is enabled when Qdrant is containerized.
 - [ ] Repair runs target the specific missing or unhealthy collection before any
       full rebuild.
+- [ ] Active-skill rebuilds exclude hidden and lifecycle-marked inactive skills;
+      one active positive probe and one retired negative probe confirm the boundary.
