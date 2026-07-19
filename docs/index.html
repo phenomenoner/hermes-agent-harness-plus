@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hermes Agent Harness Plus</title>
+  <title>Hermes Agent Harness Plus — a memory, a map, and a health plan for your agent</title>
+  <meta name="description" content="A cheerful companion toolbox for Hermes Agent: Task Canvas evidence trails, local Qdrant recall, and share-ready skills. Optional, local-first, MIT licensed.">
   <style>
     :root {
       color-scheme: light;
@@ -22,6 +23,8 @@
     }
 
     * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
 
     body {
       margin: 0;
@@ -49,8 +52,23 @@
       z-index: 0;
     }
 
-    body::before { right: -6rem; top: 16rem; background: #ffd166; }
-    body::after { left: -7rem; bottom: 5rem; background: #9bf6ff; }
+    body::before { right: -6rem; top: 16rem; background: #ffd166; animation: drift 14s ease-in-out infinite alternate; }
+    body::after { left: -7rem; bottom: 5rem; background: #9bf6ff; animation: drift 18s ease-in-out infinite alternate-reverse; }
+
+    @keyframes drift {
+      from { transform: translateY(-14px) scale(1); }
+      to   { transform: translateY(14px) scale(1.06); }
+    }
+
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+      50%      { transform: translateY(-10px) rotate(var(--tilt, 0deg)); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
 
     main {
       position: relative;
@@ -94,10 +112,7 @@
       gap: 10px;
     }
 
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
+    a { color: inherit; text-decoration: none; }
 
     .navlinks a,
     .button {
@@ -135,22 +150,23 @@
     h1 {
       max-width: 820px;
       margin: 22px 0 18px;
-      font-size: clamp(44px, 8vw, 86px);
-      line-height: 0.94;
-      letter-spacing: -0.075em;
+      font-size: clamp(42px, 7.2vw, 78px);
+      line-height: 0.98;
+      letter-spacing: -0.07em;
     }
 
     .rainbow {
       background: linear-gradient(100deg, #ff6aa9 0%, #ff9f45 31%, #31c7a2 64%, #6b7cff 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       color: transparent;
     }
 
     .lead {
       max-width: 720px;
       color: var(--muted);
-      font-size: clamp(19px, 2.4vw, 25px);
-      line-height: 1.42;
+      font-size: clamp(19px, 2.4vw, 24px);
+      line-height: 1.45;
       margin: 0;
     }
 
@@ -170,7 +186,9 @@
 
     .button:focus-visible,
     .navlinks a:focus-visible,
-    .brand:focus-visible {
+    .brand:focus-visible,
+    .copy-btn:focus-visible,
+    details summary:focus-visible {
       outline: 3px solid rgba(64, 115, 255, 0.46);
       outline-offset: 4px;
     }
@@ -192,6 +210,18 @@
       transform: rotate(1deg);
     }
 
+    .showcase .floater {
+      position: absolute;
+      font-size: 30px;
+      filter: drop-shadow(0 10px 18px rgba(84, 74, 120, 0.25));
+      animation: floaty 5s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .floater.f1 { top: -18px; right: 28px; --tilt: -8deg; }
+    .floater.f2 { bottom: -14px; left: -12px; --tilt: 10deg; animation-delay: 1.2s; }
+    .floater.f3 { top: 40%; right: -16px; --tilt: 4deg; animation-delay: 2.1s; }
+
     .panel {
       border: 1px solid var(--line);
       border-radius: 26px;
@@ -206,6 +236,14 @@
       padding: 14px 16px;
       background: linear-gradient(90deg, rgba(255,122,182,0.12), rgba(107,188,255,0.12));
       border-bottom: 1px solid var(--line);
+    }
+
+    .panel-top .title {
+      margin-left: 6px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.01em;
     }
 
     .dot { width: 11px; height: 11px; border-radius: 999px; }
@@ -239,24 +277,98 @@
     .note strong { display: block; margin-bottom: 4px; }
     .note span { color: var(--muted); line-height: 1.45; }
 
+    .statbar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 54px;
+    }
+
+    .stat {
+      text-align: center;
+      padding: 18px 12px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--paper);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 34px rgba(84, 74, 120, 0.08);
+    }
+
+    .stat b {
+      display: block;
+      font-size: clamp(22px, 3vw, 30px);
+      letter-spacing: -0.04em;
+    }
+
+    .stat span { color: var(--muted); font-size: 14px; font-weight: 700; }
+
+    section { margin-top: 78px; }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 850;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #5d55ac;
+    }
+
+    h2.section-title {
+      margin: 10px 0 8px;
+      font-size: clamp(30px, 4.6vw, 46px);
+      letter-spacing: -0.055em;
+      line-height: 1.04;
+    }
+
+    .section-lead {
+      max-width: 680px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .pain {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 30px;
+    }
+
+    .pain .ouch {
+      border: 1px dashed rgba(255, 122, 182, 0.55);
+      border-radius: 24px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.62);
+    }
+
+    .ouch .big { font-size: 26px; }
+    .ouch h3 { margin: 10px 0 6px; font-size: 19px; letter-spacing: -0.03em; }
+    .ouch p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 15.5px; }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 16px;
-      margin-top: 48px;
+      margin-top: 34px;
     }
 
     .card {
       position: relative;
       overflow: hidden;
-      min-height: 210px;
+      min-height: 200px;
       border: 1px solid var(--line);
       border-radius: 28px;
       padding: 24px;
       background: var(--paper);
       box-shadow: 0 18px 50px rgba(84, 74, 120, 0.10);
       backdrop-filter: blur(18px);
+      transition: transform 180ms ease, box-shadow 180ms ease;
     }
+
+    .card:hover { transform: translateY(-4px) rotate(-0.4deg); box-shadow: 0 26px 60px rgba(84, 74, 120, 0.16); }
 
     .card::after {
       content: "";
@@ -274,30 +386,172 @@
       height: 48px;
       display: grid;
       place-items: center;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
       border-radius: 18px;
       background: white;
       box-shadow: 0 12px 30px rgba(84, 74, 120, 0.10);
       font-size: 24px;
     }
 
-    .card h2 { margin: 0 0 10px; font-size: 24px; letter-spacing: -0.035em; }
-    .card p { margin: 0; color: var(--muted); line-height: 1.58; }
+    .card h3 { margin: 0 0 8px; font-size: 21px; letter-spacing: -0.035em; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.56; font-size: 15.5px; }
+    .card code {
+      font-size: 13px;
+      background: #f4f2ff;
+      border-radius: 8px;
+      padding: 2px 6px;
+    }
 
-    .strip {
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 34px;
+      counter-reset: step;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 22px;
+      background: var(--paper);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 14px 40px rgba(84, 74, 120, 0.09);
+    }
+
+    .step .num {
+      counter-increment: step;
+      display: inline-grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      font-weight: 900;
+      color: white;
+      background: linear-gradient(135deg, var(--num-a, #f0529c), var(--num-b, #6f63ea));
+      box-shadow: 0 10px 24px rgba(111, 99, 234, 0.28);
+    }
+
+    .step .num::before { content: counter(step); }
+    .step h3 { margin: 14px 0 8px; font-size: 20px; letter-spacing: -0.03em; }
+    .step p { margin: 0 0 12px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+
+    .code {
+      position: relative;
+      border-radius: 18px;
+      border: 1px solid rgba(32, 32, 51, 0.55);
+      background: #23233b;
+      color: #f4f2ff;
+      padding: 16px 14px;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, Menlo, monospace;
+      font-size: 12.8px;
+      line-height: 1.6;
+      white-space: pre;
+      text-align: left;
+    }
+
+    .code .c { color: #9aa0c3; }
+    .code .g { color: #7ee7c0; }
+    .code .p { color: #ffa9d2; }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      border: 0;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #23233b;
+      background: rgba(255, 255, 255, 0.92);
+      transition: transform 120ms ease;
+    }
+
+    .copy-btn:hover { transform: scale(1.06); }
+
+    .ribbon {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      align-items: center;
       justify-content: center;
-      margin-top: 30px;
-      padding: 18px;
-      border: 1px dashed rgba(142, 125, 255, 0.35);
-      border-radius: 24px;
-      color: #5b5790;
-      background: rgba(255, 255, 255, 0.56);
-      font-weight: 780;
+      margin-top: 34px;
     }
+
+    .ribbon .tag {
+      border: 1px solid rgba(142, 125, 255, 0.30);
+      background: rgba(255, 255, 255, 0.66);
+      color: #4d477e;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 800;
+      font-size: 15px;
+      box-shadow: 0 8px 22px rgba(142, 125, 255, 0.10);
+    }
+
+    .faq { max-width: 780px; margin: 30px auto 0; display: grid; gap: 12px; }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--paper);
+      backdrop-filter: blur(12px);
+      padding: 4px 18px;
+      box-shadow: 0 10px 30px rgba(84, 74, 120, 0.07);
+    }
+
+    details summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 0;
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+
+    details summary::-webkit-details-marker { display: none; }
+
+    details summary::after {
+      content: "＋";
+      font-size: 20px;
+      color: var(--violet);
+      transition: transform 160ms ease;
+    }
+
+    details[open] summary::after { transform: rotate(45deg); }
+    details p { margin: 0 0 16px; color: var(--muted); line-height: 1.6; }
+    details code { background: #f4f2ff; border-radius: 8px; padding: 2px 6px; font-size: 14px; }
+
+    .banner {
+      margin-top: 84px;
+      text-align: center;
+      border-radius: 36px;
+      padding: 52px 26px;
+      border: 1px solid rgba(142, 125, 255, 0.24);
+      background:
+        radial-gradient(circle at 18% 20%, rgba(255, 122, 182, 0.20), transparent 18rem),
+        radial-gradient(circle at 85% 80%, rgba(107, 188, 255, 0.22), transparent 16rem),
+        rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .banner h2 {
+      margin: 0 0 12px;
+      font-size: clamp(30px, 5vw, 52px);
+      letter-spacing: -0.06em;
+      line-height: 1.02;
+    }
+
+    .banner p { margin: 0 auto; max-width: 560px; color: var(--muted); font-size: 18px; line-height: 1.5; }
+    .banner .cta { justify-content: center; }
 
     footer {
       margin-top: 52px;
@@ -305,6 +559,14 @@
       color: var(--muted);
       font-size: 14px;
       text-align: center;
+      line-height: 1.8;
+    }
+
+    footer a { font-weight: 800; color: #5d55ac; }
+
+    @media (max-width: 900px) {
+      .statbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pain, .grid, .steps { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 860px) {
@@ -312,14 +574,14 @@
       .navlinks { justify-content: flex-start; }
       .hero { grid-template-columns: 1fr; }
       .showcase { transform: none; }
-      .grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 520px) {
       main { width: min(100% - 22px, 1120px); padding-top: 24px; }
-      h1 { font-size: clamp(40px, 16vw, 58px); }
+      h1 { font-size: clamp(38px, 14vw, 56px); }
       .navlinks a { padding: 9px 12px; }
       .showcase, .card { border-radius: 24px; }
+      .statbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -331,47 +593,173 @@
         <span>Hermes Agent Harness Plus</span>
       </a>
       <div class="navlinks">
-        <a href="install.md">Install</a>
-        <a href="catalog.md">Components</a>
-        <a href="technical/context-canvas.md">Technical notes</a>
+        <a href="#features">Features</a>
+        <a href="#quickstart">Quick start</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/phenomenoner/hermes-agent-harness-plus">⭐ Star on GitHub</a>
       </div>
     </nav>
 
     <section class="hero">
       <div>
-        <div class="pill">✨ A friendly add-on kit for Hermes Agent</div>
-        <h1>Make agent work easier to <span class="rainbow">track, search, and share.</span></h1>
-        <p class="lead">Harness Plus adds optional helpers to Hermes Agent: task notes, local recall, install guides, and reusable skills that make long-running work easier to manage.</p>
+        <div class="pill">✨ A cheerful add-on kit for Hermes Agent · MIT licensed</div>
+        <h1>Give your agent a <span class="rainbow">memory, a map, and a health plan.</span></h1>
+        <p class="lead">Long agent sessions bury their best clues in scrollback. Harness Plus keeps the receipts: Task Canvas evidence trails, local semantic recall, and share-ready skills — all optional, all local-first. 🧸</p>
         <div class="cta">
-          <a class="button primary" href="install.md">Start with the install guide</a>
-          <a class="button" href="catalog.md">Explore components</a>
-          <a class="button" href="https://github.com/phenomenoner/hermes-agent-harness-plus#readme">Open on GitHub</a>
+          <a class="button primary" href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md">🚀 Install in minutes</a>
+          <a class="button" href="#features">🧩 See what's inside</a>
+          <a class="button" href="https://github.com/phenomenoner/hermes-agent-harness-plus#readme">📖 Read the README</a>
         </div>
       </div>
 
       <aside class="showcase" aria-label="Toolkit preview">
+        <span class="floater f1" aria-hidden="true">🗺️</span>
+        <span class="floater f2" aria-hidden="true">💖</span>
+        <span class="floater f3" aria-hidden="true">🔎</span>
         <div class="panel">
-          <div class="panel-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="panel-top">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="title">task-canvas · demo session</span>
+          </div>
           <div class="canvas-list">
-            <div class="note"><div class="icon">🗺️</div><div><strong>Task Canvas</strong><span>Keep compact progress notes while detailed evidence stays in referenced files.</span></div></div>
-            <div class="note"><div class="icon">🔎</div><div><strong>Local recall</strong><span>Search selected skills and recent sessions from your own Qdrant collections.</span></div></div>
-            <div class="note"><div class="icon">🧰</div><div><strong>Reusable pieces</strong><span>Copy only the plugin, script, or skill that helps your Hermes setup today.</span></div></div>
+            <div class="note"><div class="icon">🗺️</div><div><strong>Task Canvas</strong><span>Compact progress notes stay in JSON; raw logs park in evidence refs.</span></div></div>
+            <div class="note"><div class="icon">🔎</div><div><strong>Local recall</strong><span>Search your skills and recent sessions from your own Qdrant. Nothing leaves home.</span></div></div>
+            <div class="note"><div class="icon">🩺</div><div><strong>Quiet watchdog</strong><span>Silent when recall is healthy, loud the moment it breaks.</span></div></div>
           </div>
         </div>
       </aside>
     </section>
 
-    <section class="grid" aria-label="Highlights">
-      <div class="card" style="--bubble:#ff7ab6"><div class="emoji">🗺️</div><h2>Keep a task map</h2><p>Capture what happened, why it mattered, and where the evidence lives without dragging every log into active context.</p></div>
-      <div class="card" style="--bubble:#68d8b2"><div class="emoji">🔎</div><h2>Find it again</h2><p>Use local Qdrant helpers to make selected skills and recent work searchable from Hermes Agent.</p></div>
-      <div class="card" style="--bubble:#6bbcff"><div class="emoji">🌱</div><h2>Add helpers as you go</h2><p>Start with one helper, then add scripts, plugins, or skills as your workflow matures.</p></div>
+    <div class="statbar" role="list" aria-label="Project facts">
+      <div class="stat" role="listitem"><b>6+</b><span>pluggable pieces 🧩</span></div>
+      <div class="stat" role="listitem"><b>100%</b><span>local-first 🏠</span></div>
+      <div class="stat" role="listitem"><b>0</b><span>changes to Hermes core 🪶</span></div>
+      <div class="stat" role="listitem"><b>MIT</b><span>do-what-you-love license 📜</span></div>
+    </div>
+
+    <section aria-label="The problem">
+      <span class="kicker">🪦 The scrollback graveyard</span>
+      <h2 class="section-title">Your agent works hard.<br>Its best clues deserve better than line 4,000.</h2>
+      <p class="section-lead">A tool call surfaces the golden hint. A test log answers the big question. Ten minutes later, it's all buried — and everyone pays for it.</p>
+      <div class="pain">
+        <div class="ouch"><span class="big">😵‍💫</span><h3>Forgotten clues</h3><p>The crucial output scrolls away, and the session quietly loses the shape of the work.</p></div>
+        <div class="ouch"><span class="big">🔁</span><h3>Repeated dead ends</h3><p>Without a map of what failed, the agent happily tries the same broken path again.</p></div>
+        <div class="ouch"><span class="big">🤷</span><h3>Unverifiable answers</h3><p>"Trust me" is not a citation. Final answers should point back to real evidence.</p></div>
+      </div>
     </section>
 
-    <div class="strip">MIT licensed · optional components · local-first defaults · built for human-readable agent work</div>
+    <section id="features" aria-label="Features">
+      <span class="kicker">🎁 What's in the box</span>
+      <h2 class="section-title">Six little helpers, one happy harness.</h2>
+      <p class="section-lead">Every piece is optional and independent. Take one, take all — Hermes Agent itself is never modified.</p>
+      <div class="grid">
+        <div class="card" style="--bubble:#ff7ab6"><div class="emoji">🗺️</div><h3>Context Canvas</h3><p>A tiny library that keeps short JSON nodes plus evidence refs — so every finished note has a path back to the facts.</p></div>
+        <div class="card" style="--bubble:#8e7dff"><div class="emoji">🛰️</div><h3>Canvas MCP sidecar</h3><p>Native MCP tools for Hermes: <code>canvas_start</code>, <code>canvas_add_ref</code>, <code>canvas_search</code>, <code>canvas_closeout</code> and friends.</p></div>
+        <div class="card" style="--bubble:#ffb36b"><div class="emoji">🤖</div><h3>Autopilot plugin</h3><p>Watches completed tool calls and writes evidence when work gets long or large. Fail-open, never edits conversation history.</p></div>
+        <div class="card" style="--bubble:#68d8b2"><div class="emoji">🔎</div><h3>Qdrant recall kit</h3><p>Index selected skills and recent sessions into your own local Qdrant — with dry-run previews and secret-pattern redaction.</p></div>
+        <div class="card" style="--bubble:#6bbcff"><div class="emoji">🩺</div><h3>Recall watchdog</h3><p>Scheduled health checks that stay quiet on green and get specific on failure — plus bounded Docker restart helpers.</p></div>
+        <div class="card" style="--bubble:#ffd166"><div class="emoji">📚</div><h3>Skills & checklists</h3><p>Drop-in Hermes skills and ops checklists that teach the habits: keep the map, find it again, share cleanly.</p></div>
+      </div>
+    </section>
+
+    <section id="quickstart" aria-label="Quick start">
+      <span class="kicker">⚡ Quick start</span>
+      <h2 class="section-title">From zero to first canvas in about a minute.</h2>
+      <p class="section-lead">Three copy-paste steps. The <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md" style="font-weight:800;color:#5d55ac;">full install guide</a> covers MCP wiring, the autopilot plugin, and Qdrant helpers.</p>
+      <div class="steps">
+        <div class="step" style="--num-a:#f0529c; --num-b:#ff9f45">
+          <span class="num" aria-hidden="true"></span>
+          <h3>Grab the toolbox</h3>
+          <p>Clone the repo and hop in.</p>
+          <div class="code" data-copy="git clone https://github.com/phenomenoner/hermes-agent-harness-plus.git
+cd hermes-agent-harness-plus"><button class="copy-btn" type="button">Copy</button><span class="c"># clone &amp; enter</span>
+<span class="g">git clone</span> https://github.com/phenomenoner/\
+hermes-agent-harness-plus.git
+<span class="g">cd</span> hermes-agent-harness-plus</div>
+        </div>
+        <div class="step" style="--num-a:#31c7a2; --num-b:#6bbcff">
+          <span class="num" aria-hidden="true"></span>
+          <h3>Prove it works</h3>
+          <p>Install and run the smoke tests.</p>
+          <div class="code" data-copy="python -m pip install -e '.[mcp]' pytest
+python -m pytest -q"><button class="copy-btn" type="button">Copy</button><span class="c"># install + smoke tests</span>
+<span class="g">python -m pip install</span> -e <span class="p">'.[mcp]'</span> pytest
+<span class="g">python -m pytest</span> -q</div>
+        </div>
+        <div class="step" style="--num-a:#8e7dff; --num-b:#f0529c">
+          <span class="num" aria-hidden="true"></span>
+          <h3>Start a canvas 🎉</h3>
+          <p>Give your first task a memory.</p>
+          <div class="code" data-copy="PYTHONPATH=packages/context-canvas python -m context_canvas.cli start --session-id demo --goal &quot;Keep evidence for a long Hermes task&quot;"><button class="copy-btn" type="button">Copy</button><span class="c"># first Task Canvas</span>
+<span class="g">PYTHONPATH=</span>packages/context-canvas \
+<span class="g">python -m</span> context_canvas.cli start \
+  --session-id <span class="p">demo</span> \
+  --goal <span class="p">"Keep evidence for a long task"</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Principles">
+      <span class="kicker">🧭 Our promises</span>
+      <h2 class="section-title">Cute on the outside, careful on the inside.</h2>
+      <div class="ribbon">
+        <span class="tag">🏠 Local-first — your data stays home</span>
+        <span class="tag">🪶 Zero changes to Hermes core</span>
+        <span class="tag">🛟 Fail-open — helpers never block your session</span>
+        <span class="tag">🔍 Dry-run previews before any indexing</span>
+        <span class="tag">🧾 Every claim links to evidence</span>
+      </div>
+    </section>
+
+    <section id="faq" aria-label="FAQ">
+      <span class="kicker">💬 Tiny FAQ</span>
+      <h2 class="section-title">Good questions, honest answers.</h2>
+      <div class="faq">
+        <details>
+          <summary>Does it modify Hermes Agent?</summary>
+          <p>Nope! Everything is an optional outer layer — adapters, plugins, sidecars, skills, and checklists. Remove any piece and Hermes keeps running exactly as before.</p>
+        </details>
+        <details>
+          <summary>Where does my data go?</summary>
+          <p>Nowhere. Canvases live under <code>~/.hermes/context-canvas</code>, and Qdrant recall binds to <code>127.0.0.1</code> by default. Session indexing skips system prompts and tool outputs, redacts common secret patterns, and always supports <code>--dry-run</code> previews.</p>
+        </details>
+        <details>
+          <summary>Do I need all six pieces?</summary>
+          <p>Not at all — they're independent. Lots of value starts with just the Task Canvas CLI. Add the MCP sidecar, autopilot plugin, or Qdrant recall whenever your workflow asks for them.</p>
+        </details>
+        <details>
+          <summary>What do I need to run it?</summary>
+          <p>Python 3.10+, plus a working Hermes Agent install for the MCP and plugin pieces. The Qdrant helpers want a local Qdrant (Docker works great) and <code>fastembed</code>. Details live in the <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md" style="font-weight:800;color:#5d55ac;">install guide</a>.</p>
+        </details>
+      </div>
+    </section>
+
+    <div class="banner">
+      <h2>May your agent never lose a clue again. 🧸✨</h2>
+      <p>Pick the pieces you need, leave the rest. Star the repo to follow along — new helpers land as they get share-ready.</p>
+      <div class="cta">
+        <a class="button primary" href="https://github.com/phenomenoner/hermes-agent-harness-plus">⭐ Star on GitHub</a>
+        <a class="button" href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md">📦 Install guide</a>
+        <a class="button" href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/catalog.md">🧩 Component catalog</a>
+      </div>
+    </div>
 
     <footer>
-      Built as a companion toolbox for Hermes Agent users. Pick the pieces you need and leave the rest.
+      Built as a companion toolbox for <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a> users.<br>
+      MIT licensed · <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/NOTICE">third-party notices</a> · <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/CONTRIBUTING.md">contributing</a> · <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/SECURITY.md">security</a>
     </footer>
   </main>
+
+  <script>
+    document.querySelectorAll(".copy-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var text = btn.parentElement.getAttribute("data-copy");
+        navigator.clipboard.writeText(text).then(function () {
+          btn.textContent = "Copied! 🎀";
+          setTimeout(function () { btn.textContent = "Copy"; }, 1600);
+        });
+      });
+    });
+  </script>
 </body>
 </html>
