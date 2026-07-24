@@ -6,7 +6,7 @@ Initial public bundle:
 - Context Canvas Autopilot plugin.
 - Qdrant skill/session indexing, MCP search, refresh, and health-check scripts.
 - Skills for Task Canvas and Qdrant recall sidecars.
-- Release, artifact handoff, and scheduled-agent health checklists.
+- Release, artifact handoff, scheduled-agent, and MCP sidecar health checklists.
 - Installation guide and GitHub Pages website.
 
 Kept outside this bundle:

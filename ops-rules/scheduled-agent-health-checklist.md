@@ -39,6 +39,11 @@ Good examples:
 - a sync job: compare the local and remote commit or release marker;
 - a watchdog: run its verbose mode once, then its quiet mode.
 
+For an MCP-backed job, pair these checks with the
+[MCP Sidecar Health Checklist](mcp-sidecar-health-checklist.md). A reconnect
+warning should be followed by a fresh transport test and a real read/query
+before any restart or data repair.
+
 Prefer deterministic commands that work in minimal shell environments. Avoid
 relying on interactive helpers or notebook-style execution paths inside an
 unattended runner.

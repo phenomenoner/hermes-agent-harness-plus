@@ -62,3 +62,6 @@
 - Purpose: keep the README, docs, and GitHub Pages site consistent in voice,
   visual tokens, and facts as the toolbox evolves; includes the content sync
   map and verification checklist for public-surface updates.
+- Path: `ops-rules/mcp-sidecar-health-checklist.md`
+- Purpose: distinguish recovered MCP transport events from sidecar, backend, or
+  host failures before restarting services or touching indexed data.
