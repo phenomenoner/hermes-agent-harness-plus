@@ -13,8 +13,8 @@ to, import, or interoperate with the projects below:
 - Qdrant — https://github.com/qdrant/qdrant — Apache-2.0 License.
   Tested locally against Qdrant server 1.17.1.
 - Model Context Protocol Python SDK — https://github.com/modelcontextprotocol/python-sdk
-  — MIT License. Minimum tested dependency range: `mcp>=1.22.0`; local
-  validation used `mcp` 1.26.0.
+  — MIT License. Supported and tested dependency range: `mcp>=1.22.0,<2`;
+  fresh validation used `mcp` 1.29.0.
 - FastEmbed — https://github.com/qdrant/fastembed — Apache-2.0 License.
   Minimum documented dependency range: `fastembed>=0.8.0`. Used by the optional
   Qdrant indexing/search scripts when installed.

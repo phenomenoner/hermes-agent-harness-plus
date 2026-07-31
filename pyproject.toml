@@ -20,7 +20,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.22.0"]
+mcp = ["mcp>=1.22.0,<2"]
 qdrant = ["fastembed>=0.8.0"]
 dev = ["pytest>=8.0", "PyYAML>=6.0"]
 
