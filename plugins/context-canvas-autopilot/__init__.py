@@ -53,6 +53,7 @@ _HIGH_SIGNAL_TOOLS = {
 }
 
 _lock = threading.Lock()
+_canvas_init_lock = threading.Lock()
 _session_counts: dict[str, int] = {}
 _active_canvases: set[str] = set()
 
@@ -167,19 +168,23 @@ def _store():
 
 
 def _ensure_canvas(canvas_id: str, *, task_id: str = "", session_id: str = "") -> None:
-    if canvas_id in _active_canvases:
-        return
-    store = _store()
-    try:
-        store.read(canvas_id)
-    except FileNotFoundError:
-        goal = (
-            "Autopilot evidence canvas for Hermes session "
-            f"{session_id or task_id or 'default'}; created by post_tool_call policy."
-        )
-        store.start(goal=goal, session_id=canvas_id, title=f"Autopilot Canvas: {session_id or task_id or 'default'}")
-    with _lock:
-        _active_canvases.add(canvas_id)
+    # Parallel tool calls can complete together. Serialize the check/create path
+    # so a later starter cannot overwrite a canvas that another hook just used.
+    with _canvas_init_lock:
+        with _lock:
+            if canvas_id in _active_canvases:
+                return
+        store = _store()
+        try:
+            store.read(canvas_id)
+        except FileNotFoundError:
+            goal = (
+                "Autopilot evidence canvas for Hermes session "
+                f"{session_id or task_id or 'default'}; created by post_tool_call policy."
+            )
+            store.start(goal=goal, session_id=canvas_id, title=f"Autopilot Canvas: {session_id or task_id or 'default'}")
+        with _lock:
+            _active_canvases.add(canvas_id)
 
 
 def _summarize_args(args: Any, max_chars: int = 500) -> str:

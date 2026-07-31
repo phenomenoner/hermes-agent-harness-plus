@@ -6,6 +6,9 @@
 - Purpose: keep concise task state in JSON while large evidence lives in
   `refs/tc_NNN.md` files.
 - Good for: long debugging sessions, code review, research, multi-tool tasks.
+- Capture safety: same-session updates are serialized, canonical files use
+  atomic replacement, and search can report a malformed canvas while continuing
+  through readable evidence refs.
 - Not for: storing secrets, private memories, or permanent project knowledge.
 
 ## Context Canvas MCP sidecar

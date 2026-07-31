@@ -1,7 +1,7 @@
 ---
 name: context-canvas-memory
 description: Use when a Hermes Agent task becomes long, tool-heavy, evidence-heavy, or likely to lose context. Maintain a compact Task Canvas with raw evidence refs instead of carrying every log in active context.
-version: 1.0.0
+version: 1.0.1
 author: hermes-agent-harness-plus contributors
 license: MIT
 metadata:
@@ -56,6 +56,9 @@ If a note has no evidence, mark it as a plan, question, or assumption.
 2. Writing confident summaries without evidence refs.
 3. Capturing everything. A canvas is a map, not a transcript.
 4. Saving temporary task scratch into durable memory.
+5. Treating one skipped or malformed canvas as a full MCP outage. Check
+   `skipped_count`, preserve the original file, and recover from readable refs
+   before considering wider service repair.
 
 ## Verification Checklist
 
@@ -63,4 +66,7 @@ If a note has no evidence, mark it as a plan, question, or assumption.
 - [ ] Factual completed nodes have evidence refs.
 - [ ] Large outputs are offloaded to refs.
 - [ ] Active blockers and deprecated paths are visible.
+- [ ] Parallel writers use the same CanvasStore session path; on non-POSIX
+  systems, cross-process writes are routed through one process.
+- [ ] A nonzero search `skipped_count` is reviewed as a file-integrity signal.
 - [ ] The final answer is consistent with the evidence.
