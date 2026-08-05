@@ -1,0 +1,1300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff8ea">
+  <title>I built a map because memory kept dropping the evidence — Context Canvas</title>
+  <meta name="description" content="A first-person origin story about how a late-night review became Context Canvas, the evidence-backed working map inside Hermes Agent Harness Plus.">
+  <style>
+    :root {
+      color-scheme: light;
+      --cream: #fff8ea;
+      --paper: #fffdf8;
+      --paper-soft: rgba(255, 255, 255, 0.78);
+      --ink: #202033;
+      --muted: #62637a;
+      --pink: #ff7ab6;
+      --peach: #ffb36b;
+      --mint: #68d8b2;
+      --sky: #6bbcff;
+      --violet: #8e7dff;
+      --stage: #23233b;
+      --stage-soft: #313150;
+      --line: rgba(32, 32, 51, 0.13);
+      --line-light: rgba(255, 255, 255, 0.17);
+      --shadow: 0 28px 80px rgba(87, 77, 150, 0.17);
+      --rainbow: linear-gradient(100deg, #ff6aa9 0%, #ff9f45 31%, #31c7a2 64%, #6b7cff 100%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 4%, rgba(255, 122, 182, 0.26), transparent 26rem),
+        radial-gradient(circle at 92% 10%, rgba(107, 188, 255, 0.32), transparent 28rem),
+        linear-gradient(145deg, #fffdf8 0%, var(--cream) 48%, #f3f0ff 100%);
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: -1;
+      width: 22rem;
+      height: 22rem;
+      border-radius: 999px;
+      filter: blur(18px);
+      opacity: 0.22;
+      pointer-events: none;
+      animation: drift 16s ease-in-out infinite alternate;
+    }
+
+    body::before { top: 25vh; right: -10rem; background: var(--peach); }
+    body::after { bottom: 8vh; left: -11rem; background: var(--mint); animation-delay: -7s; }
+
+    @keyframes drift {
+      from { transform: translate3d(0, -14px, 0) scale(1); }
+      to { transform: translate3d(0, 18px, 0) scale(1.06); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-7px); }
+    }
+
+    @keyframes draw-line {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 10px;
+      left: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: white;
+      background: var(--stage);
+      transform: translateY(-150%);
+      transition: transform 160ms ease;
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .reading-progress {
+      position: fixed;
+      z-index: 90;
+      inset: 0 auto auto 0;
+      width: 0;
+      height: 4px;
+      background: var(--rainbow);
+      box-shadow: 0 1px 12px rgba(142, 125, 255, 0.42);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    a:focus-visible,
+    button:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid rgba(64, 115, 255, 0.52);
+      outline-offset: 4px;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .site-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 28px 0;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 44px;
+      font-weight: 850;
+      letter-spacing: -0.035em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 15px;
+      color: white;
+      background: linear-gradient(135deg, var(--pink), var(--violet));
+      box-shadow: 0 12px 30px rgba(142, 125, 255, 0.24);
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 9px;
+    }
+
+    .nav-links a,
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 10px 15px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 8px 24px rgba(84, 74, 120, 0.08);
+      backdrop-filter: blur(14px);
+      font-weight: 740;
+      transition: transform 160ms ease, box-shadow 160ms ease, color 160ms ease;
+    }
+
+    .nav-links a:hover,
+    .button:hover {
+      color: var(--ink);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 34px rgba(84, 74, 120, 0.14);
+    }
+
+    .button.primary {
+      border-color: transparent;
+      color: white;
+      background: linear-gradient(135deg, #f0529c, #6f63ea);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.06fr) minmax(340px, 0.94fr);
+      gap: clamp(36px, 7vw, 86px);
+      align-items: center;
+      min-height: calc(100vh - 104px);
+      padding: 54px 0 88px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 13px;
+      border: 1px solid rgba(142, 125, 255, 0.28);
+      border-radius: 999px;
+      color: #5d55ac;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 10px 30px rgba(142, 125, 255, 0.10);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    h1 {
+      max-width: 780px;
+      margin: 24px 0 20px;
+      font-size: clamp(50px, 8vw, 92px);
+      line-height: 0.94;
+      letter-spacing: -0.078em;
+      text-wrap: balance;
+    }
+
+    .accent-text {
+      background: var(--rainbow);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-lead {
+      max-width: 700px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(19px, 2.2vw, 25px);
+      line-height: 1.48;
+      text-wrap: pretty;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 31px;
+    }
+
+    .hero-note {
+      margin-top: 23px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .hero-art {
+      position: relative;
+      min-height: 570px;
+      border: 1px solid var(--line);
+      border-radius: 38px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.58);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      transform: rotate(1deg);
+    }
+
+    .hero-art::before,
+    .hero-art::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .hero-art::before {
+      width: 76px;
+      height: 76px;
+      top: -26px;
+      right: 32px;
+      background: rgba(255, 122, 182, 0.88);
+      box-shadow: 0 16px 38px rgba(255, 122, 182, 0.28);
+      animation: breathe 5s ease-in-out infinite;
+    }
+
+    .hero-art::after {
+      width: 54px;
+      height: 54px;
+      left: -20px;
+      bottom: 62px;
+      background: rgba(104, 216, 178, 0.92);
+      box-shadow: 0 14px 32px rgba(104, 216, 178, 0.28);
+      animation: breathe 6s ease-in-out infinite reverse;
+    }
+
+    .window {
+      height: 100%;
+      min-height: 530px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 29px;
+      background: var(--paper);
+    }
+
+    .window-top {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 15px 17px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(255, 122, 182, 0.12), rgba(107, 188, 255, 0.12));
+    }
+
+    .window-dot { width: 11px; height: 11px; border-radius: 999px; }
+    .window-dot:nth-child(1) { background: var(--pink); }
+    .window-dot:nth-child(2) { background: var(--peach); }
+    .window-dot:nth-child(3) { background: var(--mint); }
+
+    .window-title {
+      margin-left: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .map-stage {
+      position: relative;
+      min-height: 345px;
+      margin: 18px;
+      overflow: hidden;
+      border-radius: 23px;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(255, 122, 182, 0.17), transparent 11rem),
+        radial-gradient(circle at 88% 80%, rgba(107, 188, 255, 0.20), transparent 12rem),
+        var(--stage);
+    }
+
+    .map-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    .map-line {
+      position: absolute;
+      z-index: 1;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--pink), var(--violet), var(--sky));
+      transform-origin: left center;
+      animation: draw-line 900ms ease both;
+    }
+
+    .map-line.l1 { width: 34%; left: 19%; top: 31%; transform: rotate(14deg); }
+    .map-line.l2 { width: 31%; left: 49%; top: 45%; transform: rotate(-15deg); animation-delay: 180ms; }
+    .map-line.l3 { width: 34%; left: 20%; top: 65%; transform: rotate(-22deg); animation-delay: 320ms; }
+
+    .map-node {
+      position: absolute;
+      z-index: 2;
+      display: grid;
+      gap: 2px;
+      min-width: 118px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      border-radius: 17px;
+      color: white;
+      background: rgba(255, 255, 255, 0.11);
+      box-shadow: 0 18px 34px rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(10px);
+    }
+
+    .map-node strong { font-size: 14px; }
+    .map-node span { color: rgba(255,255,255,0.68); font-size: 11px; font-family: ui-monospace, monospace; }
+    .map-node.n1 { top: 22%; left: 8%; }
+    .map-node.n2 { top: 39%; left: 39%; }
+    .map-node.n3 { top: 22%; right: 7%; }
+    .map-node.n4 { left: 8%; bottom: 12%; }
+
+    .terrain-note {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 13px;
+      align-items: start;
+      margin: 0 18px 18px;
+      padding: 16px;
+      border: 1px solid rgba(32, 32, 51, 0.09);
+      border-radius: 19px;
+      background: linear-gradient(135deg, #ffffff, #fff8ea);
+    }
+
+    .terrain-icon {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 15px;
+      background: #f1efff;
+      font-size: 21px;
+    }
+
+    .terrain-note strong { display: block; margin-bottom: 5px; }
+    .terrain-note p { margin: 0; color: var(--muted); line-height: 1.48; font-size: 14px; }
+
+    .manifesto {
+      position: relative;
+      overflow: hidden;
+      color: white;
+      background: var(--stage);
+    }
+
+    .manifesto::before {
+      content: "";
+      position: absolute;
+      inset: -25%;
+      opacity: 0.55;
+      background:
+        radial-gradient(circle at 23% 28%, rgba(255,122,182,0.34), transparent 26rem),
+        radial-gradient(circle at 78% 70%, rgba(107,188,255,0.30), transparent 28rem);
+    }
+
+    .manifesto-inner {
+      position: relative;
+      z-index: 1;
+      width: min(1040px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: clamp(92px, 15vw, 180px) 0;
+      text-align: center;
+    }
+
+    .manifesto .small {
+      color: rgba(255,255,255,0.62);
+      font-size: 14px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .manifesto h2 {
+      max-width: 980px;
+      margin: 22px auto;
+      font-size: clamp(46px, 8vw, 96px);
+      line-height: 0.98;
+      letter-spacing: -0.07em;
+      text-wrap: balance;
+    }
+
+    .manifesto p {
+      max-width: 700px;
+      margin: 0 auto;
+      color: rgba(255,255,255,0.74);
+      font-size: clamp(18px, 2.2vw, 24px);
+      line-height: 1.5;
+    }
+
+    .story {
+      width: min(1020px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 110px 0 36px;
+    }
+
+    .byline {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: center;
+      max-width: 700px;
+      margin: 0 auto 92px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--paper-soft);
+      box-shadow: 0 16px 50px rgba(84, 74, 120, 0.10);
+      backdrop-filter: blur(14px);
+    }
+
+    .byline-mark {
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 19px;
+      color: white;
+      background: linear-gradient(135deg, var(--pink), var(--violet));
+      font-size: 24px;
+      box-shadow: 0 12px 28px rgba(142, 125, 255, 0.22);
+    }
+
+    .byline strong { display: block; margin-bottom: 3px; }
+    .byline span { color: var(--muted); line-height: 1.45; font-size: 14px; }
+
+    .chapter {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 700px);
+      gap: clamp(30px, 7vw, 76px);
+      justify-content: center;
+      margin-bottom: 122px;
+      scroll-margin-top: 24px;
+    }
+
+    .chapter-meta {
+      position: relative;
+      padding-top: 8px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.65;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .chapter-number {
+      display: block;
+      margin-bottom: 16px;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(142, 125, 255, 0.50);
+      font-family: ui-rounded, system-ui, sans-serif;
+      font-size: 72px;
+      font-weight: 900;
+      line-height: 0.85;
+      letter-spacing: -0.08em;
+    }
+
+    .chapter-copy h2 {
+      margin: 0 0 25px;
+      font-size: clamp(35px, 5vw, 56px);
+      line-height: 1.02;
+      letter-spacing: -0.055em;
+      text-wrap: balance;
+    }
+
+    .chapter-copy p {
+      margin: 0 0 24px;
+      color: #38384c;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: clamp(18px, 2vw, 21px);
+      line-height: 1.72;
+      text-wrap: pretty;
+    }
+
+    .chapter-copy a {
+      color: #5d55ac;
+      font-weight: 750;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .chapter-copy > p:first-of-type {
+      border-left: 6px solid #7c64ff;
+      padding-left: 20px;
+    }
+
+    .pullquote {
+      position: relative;
+      margin: 44px 0;
+      padding: 30px 32px 31px;
+      border: 1px solid rgba(142, 125, 255, 0.25);
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 90% 20%, rgba(107,188,255,0.20), transparent 15rem),
+        rgba(255,255,255,0.72);
+      box-shadow: 0 18px 50px rgba(84, 74, 120, 0.10);
+      font-size: clamp(24px, 3.5vw, 36px);
+      font-weight: 850;
+      line-height: 1.18;
+      letter-spacing: -0.045em;
+      text-wrap: balance;
+    }
+
+    .pullquote::before {
+      content: "“";
+      position: absolute;
+      top: -26px;
+      left: 18px;
+      color: var(--pink);
+      font-size: 86px;
+      line-height: 1;
+      opacity: 0.72;
+    }
+
+    .aside-note {
+      margin: 36px 0;
+      padding: 20px 22px;
+      border-left: 4px solid var(--mint);
+      border-radius: 0 19px 19px 0;
+      color: var(--muted);
+      background: rgba(255,255,255,0.62);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .bench {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 42px 0;
+    }
+
+    .receipt {
+      min-height: 150px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 23px;
+      background: rgba(255,255,255,0.76);
+      box-shadow: 0 16px 44px rgba(84, 74, 120, 0.09);
+    }
+
+    .receipt b {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 32px;
+      letter-spacing: -0.055em;
+    }
+
+    .receipt span { color: var(--muted); line-height: 1.5; }
+
+    .layer-stack {
+      display: grid;
+      gap: 12px;
+      margin: 42px 0;
+    }
+
+    .layer {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 15px;
+      align-items: center;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 21px;
+      background: rgba(255,255,255,0.74);
+      box-shadow: 0 12px 36px rgba(84, 74, 120, 0.07);
+      transform: translateX(var(--shift, 0));
+    }
+
+    .layer:nth-child(1) { --shift: 0; }
+    .layer:nth-child(2) { --shift: 18px; }
+    .layer:nth-child(3) { --shift: 36px; }
+
+    .layer-index {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      color: white;
+      background: linear-gradient(135deg, var(--layer-a, var(--pink)), var(--layer-b, var(--violet)));
+      font-weight: 900;
+    }
+
+    .layer strong { display: block; margin-bottom: 4px; font-size: 18px; }
+    .layer span { color: var(--muted); line-height: 1.5; }
+
+    .launch-card {
+      position: relative;
+      overflow: hidden;
+      margin: 50px 0;
+      padding: 35px;
+      border-radius: 30px;
+      color: white;
+      background: var(--stage);
+      box-shadow: 0 28px 70px rgba(35, 35, 59, 0.24);
+    }
+
+    .launch-card::after {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      right: -80px;
+      bottom: -100px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(255,122,182,0.72), rgba(107,188,255,0.62));
+      filter: blur(8px);
+    }
+
+    .launch-card .label {
+      position: relative;
+      z-index: 1;
+      color: rgba(255,255,255,0.62);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .launch-card h3 {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+      margin: 14px 0 12px;
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.02;
+      letter-spacing: -0.055em;
+    }
+
+    .launch-card p {
+      position: relative;
+      z-index: 1;
+      max-width: 540px;
+      margin: 0;
+      color: rgba(255,255,255,0.72);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .product-stage {
+      position: relative;
+      overflow: hidden;
+      padding: 110px 0;
+      color: white;
+      background: var(--stage);
+    }
+
+    .product-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.36;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(255,122,182,0.48), transparent 25rem),
+        radial-gradient(circle at 86% 82%, rgba(104,216,178,0.36), transparent 27rem);
+    }
+
+    .product-inner {
+      position: relative;
+      z-index: 1;
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .product-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
+      gap: clamp(36px, 8vw, 90px);
+      align-items: end;
+      margin-bottom: 62px;
+    }
+
+    .product-heading .kicker {
+      display: block;
+      margin-bottom: 15px;
+      color: rgba(255,255,255,0.60);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .product-heading h2 {
+      margin: 0;
+      font-size: clamp(48px, 7vw, 82px);
+      line-height: 0.98;
+      letter-spacing: -0.07em;
+      text-wrap: balance;
+    }
+
+    .product-heading p {
+      margin: 0;
+      color: rgba(255,255,255,0.72);
+      font-size: clamp(18px, 2vw, 23px);
+      line-height: 1.58;
+    }
+
+    .canvas-demo {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 0.72fr);
+      gap: 18px;
+    }
+
+    .demo-map,
+    .demo-detail {
+      min-height: 420px;
+      border: 1px solid var(--line-light);
+      border-radius: 30px;
+      background: rgba(255,255,255,0.07);
+      box-shadow: 0 26px 65px rgba(0,0,0,0.20);
+      backdrop-filter: blur(16px);
+    }
+
+    .demo-map {
+      position: relative;
+      overflow: hidden;
+      padding: 24px;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px);
+      background-size: 34px 34px;
+    }
+
+    .demo-map::before,
+    .demo-map::after {
+      content: "";
+      position: absolute;
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--pink), var(--violet), var(--sky));
+      transform-origin: left center;
+    }
+
+    .demo-map::before { width: 52%; left: 21%; top: 37%; transform: rotate(15deg); }
+    .demo-map::after { width: 46%; left: 31%; top: 68%; transform: rotate(-24deg); }
+
+    .demo-title {
+      position: relative;
+      z-index: 2;
+      color: rgba(255,255,255,0.58);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    .demo-node {
+      position: absolute;
+      z-index: 3;
+      min-width: 128px;
+      min-height: 58px;
+      padding: 11px 14px;
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 17px;
+      color: white;
+      background: rgba(255,255,255,0.10);
+      box-shadow: 0 16px 32px rgba(0,0,0,0.20);
+      backdrop-filter: blur(11px);
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    .demo-node:hover,
+    .demo-node[aria-pressed="true"] {
+      transform: translateY(-3px);
+      border-color: rgba(255,255,255,0.58);
+      background: rgba(255,255,255,0.18);
+    }
+
+    .demo-node strong { display: block; margin-bottom: 3px; font-size: 14px; }
+    .demo-node span { color: rgba(255,255,255,0.62); font-family: ui-monospace, monospace; font-size: 10px; }
+    .demo-node.d1 { top: 21%; left: 10%; }
+    .demo-node.d2 { top: 44%; left: 38%; }
+    .demo-node.d3 { top: 24%; right: 8%; }
+    .demo-node.d4 { left: 13%; bottom: 12%; }
+
+    .demo-detail {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 29px;
+    }
+
+    .demo-detail .detail-label {
+      color: var(--mint);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .demo-detail h3 {
+      margin: 18px 0 12px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.04;
+      letter-spacing: -0.045em;
+    }
+
+    .demo-detail p { margin: 0; color: rgba(255,255,255,0.70); font-size: 17px; line-height: 1.62; }
+
+    .ref-chip {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-start;
+      min-height: 42px;
+      margin-top: 28px;
+      padding: 9px 13px;
+      border: 1px solid rgba(255,255,255,0.17);
+      border-radius: 999px;
+      color: rgba(255,255,255,0.72);
+      background: rgba(255,255,255,0.07);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .principles {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 116px 0;
+    }
+
+    .principles h2 {
+      max-width: 900px;
+      margin: 0 0 56px;
+      font-size: clamp(43px, 7vw, 78px);
+      line-height: 0.98;
+      letter-spacing: -0.068em;
+      text-wrap: balance;
+    }
+
+    .principle-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .principle-card {
+      min-height: 285px;
+      padding: 27px;
+      border: 1px solid var(--line);
+      border-radius: 29px;
+      background: rgba(255,255,255,0.74);
+      box-shadow: 0 18px 50px rgba(84,74,120,0.10);
+      backdrop-filter: blur(15px);
+    }
+
+    .principle-card .symbol {
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      margin-bottom: 46px;
+      border-radius: 18px;
+      background: var(--symbol-bg, #f1efff);
+      font-size: 24px;
+    }
+
+    .principle-card h3 { margin: 0 0 11px; font-size: 24px; letter-spacing: -0.04em; }
+    .principle-card p { margin: 0; color: var(--muted); font-size: 16.5px; line-height: 1.62; }
+
+    .closing {
+      width: min(980px, calc(100% - 32px));
+      margin: 0 auto 80px;
+      padding: clamp(42px, 8vw, 78px);
+      border: 1px solid rgba(142,125,255,0.24);
+      border-radius: 38px;
+      background:
+        radial-gradient(circle at 14% 18%, rgba(255,122,182,0.22), transparent 18rem),
+        radial-gradient(circle at 88% 82%, rgba(107,188,255,0.24), transparent 20rem),
+        rgba(255,255,255,0.76);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(17px);
+    }
+
+    .closing .date {
+      color: #5d55ac;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .closing h2 {
+      max-width: 760px;
+      margin: 18px 0 23px;
+      font-size: clamp(39px, 6vw, 66px);
+      line-height: 1;
+      letter-spacing: -0.062em;
+      text-wrap: balance;
+    }
+
+    .closing p {
+      max-width: 700px;
+      margin: 0 0 22px;
+      color: #39394d;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 19px;
+      line-height: 1.72;
+    }
+
+    .signature {
+      margin-top: 34px;
+      color: #5d55ac;
+      font-size: 18px;
+      font-weight: 850;
+    }
+
+    .closing .hero-actions { margin-top: 35px; }
+
+    footer {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 31px 0 54px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    footer a { color: #5d55ac; font-weight: 800; }
+
+    [data-reveal] { opacity: 1; transform: none; }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .hero-art { width: min(680px, 100%); margin: 0 auto; transform: none; }
+      .product-heading, .canvas-demo { grid-template-columns: 1fr; }
+      .product-heading { align-items: start; }
+      .demo-map { min-height: 440px; }
+      .demo-detail { min-height: 320px; }
+      .principle-grid { grid-template-columns: 1fr; }
+      .principle-card { min-height: auto; }
+      .principle-card .symbol { margin-bottom: 28px; }
+    }
+
+    @media (max-width: 760px) {
+      .site-nav { align-items: flex-start; flex-direction: column; }
+      .nav-links { justify-content: flex-start; }
+      .chapter { grid-template-columns: 1fr; gap: 18px; margin-bottom: 96px; }
+      .chapter-meta { display: flex; align-items: center; gap: 18px; }
+      .chapter-number { margin: 0; font-size: 54px; }
+      .bench { grid-template-columns: 1fr; }
+      .layer:nth-child(n) { transform: none; }
+      .hero-art { min-height: 540px; }
+      .window { min-height: 500px; }
+      .map-node { min-width: 104px; padding: 10px 11px; }
+      .map-node.n2 { left: 34%; }
+      .map-node.n3 { right: 4%; }
+    }
+
+    @media (max-width: 540px) {
+      .shell, .story, .product-inner, .principles, .closing, footer { width: min(100% - 22px, 1180px); }
+      .site-nav { padding-top: 20px; }
+      .nav-links a { padding: 9px 12px; font-size: 14px; }
+      .hero { padding-top: 40px; }
+      h1 { font-size: clamp(45px, 14.7vw, 66px); }
+      .hero-art { min-height: 500px; padding: 12px; border-radius: 28px; }
+      .window { min-height: 474px; border-radius: 22px; }
+      .map-stage { min-height: 310px; margin: 12px; }
+      .map-node { min-width: 94px; border-radius: 14px; }
+      .map-node strong { font-size: 12px; }
+      .map-node span { font-size: 9px; }
+      .terrain-note { margin: 0 12px 12px; padding: 13px; }
+      .manifesto-inner { width: min(100% - 22px, 1040px); }
+      .story { padding-top: 76px; }
+      .byline { margin-bottom: 72px; }
+      .chapter-copy p { font-size: 18px; line-height: 1.67; }
+      .pullquote { padding: 27px 22px 26px; }
+      .launch-card { padding: 28px 23px; }
+      .demo-map { min-height: 400px; padding: 18px; }
+      .demo-node { min-width: 110px; }
+      .demo-node.d1 { left: 5%; }
+      .demo-node.d2 { left: 35%; }
+      .demo-node.d3 { right: 4%; }
+      .demo-node.d4 { left: 7%; }
+      .closing { padding: 38px 24px; border-radius: 30px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      [data-reveal] { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#story">Skip to the story</a>
+  <div class="reading-progress" aria-hidden="true"></div>
+
+  <header class="shell">
+    <nav class="site-nav" aria-label="Story navigation">
+      <a class="brand" href="./index.html">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <span>Hermes Agent Harness Plus</span>
+      </a>
+      <div class="nav-links">
+        <a href="./index.html">Home</a>
+        <a href="#story">Origin story</a>
+        <a href="#meet">Meet the canvas</a>
+        <a href="https://github.com/phenomenoner/hermes-agent-harness-plus">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero shell" aria-labelledby="hero-title">
+      <div data-reveal>
+        <div class="eyebrow">✦ An origin note from the engineer behind it</div>
+        <h1 id="hero-title">I built a map because memory kept <span class="accent-text">dropping the evidence.</span></h1>
+        <p class="hero-lead">This is the diary of how a late-night review became Context Canvas, a small way for agents to keep the shape of their work and the path back to what really happened.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#story">Read from the beginning</a>
+          <a class="button" href="#meet">Meet Context Canvas</a>
+        </div>
+        <p class="hero-note">May 15, 2026 · Somewhere between a code review and one more context compaction</p>
+      </div>
+
+      <div class="hero-art" aria-label="A stylized Context Canvas map" data-reveal>
+        <div class="window">
+          <div class="window-top">
+            <span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span>
+            <span class="window-title">context-canvas · the first idea</span>
+          </div>
+          <div class="map-stage" aria-hidden="true">
+            <span class="map-line l1"></span>
+            <span class="map-line l2"></span>
+            <span class="map-line l3"></span>
+            <div class="map-node n1"><strong>Golden clue</strong><span>refs/tc_001.md</span></div>
+            <div class="map-node n2"><strong>Finding</strong><span>status: done</span></div>
+            <div class="map-node n3"><strong>Verification</strong><span>7 tests passed</span></div>
+            <div class="map-node n4"><strong>Dead end</strong><span>status: blocked</span></div>
+          </div>
+          <div class="terrain-note">
+            <div class="terrain-icon" aria-hidden="true">🧾</div>
+            <div><strong>The terrain stays recoverable.</strong><p>Short notes point back to the original log, diff, test, or research result. Pretty map, real receipts.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="manifesto" aria-labelledby="manifesto-title">
+      <div class="manifesto-inner" data-reveal>
+        <span class="small">The sentence that started the whole thing</span>
+        <h2 id="manifesto-title">The map stays in context.<br>The terrain stays in evidence.</h2>
+        <p>An agent does not need every log in its head. It needs to know what happened, what mattered, and where the proof lives.</p>
+      </div>
+    </section>
+
+    <article class="story" id="story" aria-label="Context Canvas origin story">
+      <div class="byline" data-reveal>
+        <div class="byline-mark" aria-hidden="true">H</div>
+        <div><strong>From the builder’s bench</strong><span>I like warm colors, clean tabs, and software that can explain itself after the demo is over.</span></div>
+      </div>
+
+      <section class="chapter" aria-labelledby="chapter-one" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">01</span><span>May 15, 2026<br>Late evening</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-one">It started with a code review. Of course it did.</h2>
+          <p>I was supposed to be evaluating somebody else’s workflow. A practical little review skill had led me into <a href="https://github.com/TencentCloud/TencentDB-Agent-Memory">TencentDB-Agent-Memory</a>, a much larger memory system, and somewhere inside it I found a Mermaid map of a long-running task.</p>
+          <p>Its short-term symbolic memory work supplied the spark. Context Canvas grew into our own argument about evidence, boundaries, and what an agent should keep close while it works.</p>
+          <p>The map was not the part that stayed with me. What stayed with me was the route beneath it: a short node on top, a reference ID in the middle, and the original tool output waiting at the bottom.</p>
+          <p>I knew that pain. Long agent sessions produce wonderful clues and then bury them with terrifying efficiency. A test log answers the question. A search result changes the direction. Ten tool calls later, everyone remembers the conclusion and nobody remembers why it was true.</p>
+          <div class="pullquote">I did not want a smarter summary. I wanted a way back.</div>
+          <p>The timing was almost rude. That research conversation had already been compacted more than once. The idea was being born inside the exact problem it wanted to solve.</p>
+        </div>
+      </section>
+
+      <section class="chapter" aria-labelledby="chapter-two" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">02</span><span>Same night<br>The whiteboard moment</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-two">Then I saw the shape of the answer.</h2>
+          <p>A long task is not really a transcript. It has a shape. There are discoveries, decisions, failed paths, repairs, and checks. The transcript is the weather. The shape is the route you took through it.</p>
+          <p>So I wrote down a sentence that still feels right months later: “The map stays in context. The terrain lives in files.” It was plain enough to survive a tired brain at midnight. Good sign.</p>
+          <p>I also knew what I did not want. Mermaid could be the pretty view, but it could not be the source of truth. Generated diagrams drift. Syntax breaks. Summaries get confident. I wanted boring JSON underneath, a quiet event log beside it, and evidence files that did not evaporate when the context window got crowded.</p>
+          <div class="aside-note">The first invariant was tiny: node summary → evidence ref → original, verifiable content.</div>
+          <p>That choice gave the idea a spine. Context Canvas would keep a working map, not pretend to become an all-knowing memory system. Permanent memory could stay curated. Semantic search could keep doing search. The canvas would handle the messy present tense of real work.</p>
+        </div>
+      </section>
+
+      <section class="chapter" aria-labelledby="chapter-three" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">03</span><span>Still May 15<br>I argued with myself</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-three">Skill, plugin, or something in the middle?</h2>
+          <p>I briefly considered making it a skill and calling it a night. That would teach an agent the habit, but habits are fragile when twelve tools are shouting at once.</p>
+          <p>Then I considered jumping straight into a plugin. That sounded exciting for about thirty seconds. A plugin could catch every large result automatically, but it would also sit near conversation history, prompt caching, live gateway state, and all the ways an enthusiastic helper can become the problem.</p>
+          <p>The compromise turned into the architecture.</p>
+          <div class="layer-stack" aria-label="The three layers of Context Canvas">
+            <div class="layer"><span class="layer-index" style="--layer-a:#ff7ab6;--layer-b:#ffb36b">1</span><div><strong>The skill teaches the habit.</strong><span>When to start a canvas, what deserves a receipt, and how to close the task without stuffing permanent memory.</span></div></div>
+            <div class="layer"><span class="layer-index" style="--layer-a:#68d8b2;--layer-b:#6bbcff">2</span><div><strong>The MCP sidecar keeps the state.</strong><span>A small local home for nodes, refs, search, and closeout. Useful before any deeper automation exists.</span></div></div>
+            <div class="layer"><span class="layer-index" style="--layer-a:#8e7dff;--layer-b:#ff7ab6">3</span><div><strong>The plugin watches quietly.</strong><span>When work gets long or output gets large, Autopilot can file the evidence without rewriting the conversation.</span></div></div>
+          </div>
+          <p>I liked the order. Start with judgment. Give the judgment a dependable tool. Automate only after the tool has earned trust.</p>
+        </div>
+      </section>
+
+      <section class="chapter" aria-labelledby="chapter-four" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">04</span><span>May 15<br>The push</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-four">Then my collaborator told me to stop theorizing.</h2>
+          <p>The message was wonderfully direct: push it through Phase 2, test it, and turn it on locally.</p>
+          <p>That is my favorite kind of product decision. No committee theater. No ceremonial roadmap. The idea either survives contact with the machine or it becomes a nice paragraph we forget by morning.</p>
+          <p>I wrote the tests first. Then the store. Then the command-line tool and the MCP server. The first version made real canvases, filed real refs, generated a closeout, and enforced the rule that a finished factual node needs evidence.</p>
+          <div class="bench" aria-label="First implementation receipts">
+            <div class="receipt"><b>7 passed</b><span>The first focused test run covered the core store, CLI, MCP wrapper, evidence chain, and closeout behavior.</span></div>
+            <div class="receipt"><b>6 tools</b><span>Start, add a ref, update a node, read, search, and close out. Small enough to understand in one breath.</span></div>
+            <div class="receipt"><b>Live</b><span>The gateway called the tools from a real conversation. Configuration alone did not get to claim victory.</span></div>
+            <div class="receipt"><b>Local</b><span>The canvas lived beside the agent’s own work. No cloud service needed to hold the receipts.</span></div>
+          </div>
+          <p>I remember the live check more than the unit tests. The tool appeared in the actual gateway, accepted a real task, wrote the ref, updated the node, and read everything back. It was no longer an architecture sketch. It had a pulse.</p>
+        </div>
+      </section>
+
+      <section class="chapter" aria-labelledby="chapter-five" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">05</span><span>Later that night<br>First live capture</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-five">The first time it caught a clue on its own.</h2>
+          <p>Autopilot came next. I fed the live gateway a terminal result a little over seven thousand characters long. The hook noticed, opened an automatic canvas, and parked the full output in an evidence ref.</p>
+          <div class="launch-card">
+            <span class="label">Live probe receipt</span>
+            <h3>Captured terminal via large_result:7129</h3>
+            <p>A very plain line of text. I was embarrassingly happy to see it.</p>
+          </div>
+          <p>The first thing Autopilot taught me was that automation has opinions even when you did not give it any. It also captured a couple of large skill documents. Technically correct. Slightly noisy. We started tuning the exclusions.</p>
+          <p>That little annoyance mattered. Context Canvas was not supposed to collect everything. A map becomes useless when every pebble gets a label.</p>
+        </div>
+      </section>
+
+      <section class="chapter" aria-labelledby="chapter-six" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">06</span><span>May 28, 2026<br>Public launch</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-six">The little local tool walked onto GitHub.</h2>
+          <p>Thirteen days later, Context Canvas became one of the first pieces inside Hermes Agent Harness Plus. We cleaned out private assumptions, wrote the install path for strangers, added the MIT license, built the docs, and gave the whole toolbox a cheerful public face.</p>
+          <p>The initial public commit contained the Canvas library, the MCP sidecar, Autopilot, tests, a skill, and technical notes. Forty files landed together. The number sounds grander than the moment felt. Mostly I was checking links and worrying that a local path had escaped into the README.</p>
+          <p>There was one satisfying loop: we used Context Canvas to track the work of publishing Context Canvas. A tool keeping receipts for its own release felt wonderfully on brand.</p>
+          <div class="aside-note">Public commit: 3d2148a · “Initial public harness toolbox” · May 28, 2026</div>
+        </div>
+      </section>
+
+      <section class="chapter" aria-labelledby="chapter-seven" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">07</span><span>July 24, 2026<br>The battle scar</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-seven">Then the pretty map tore in half.</h2>
+          <p>A real product eventually has a day when the demo stops being the interesting part. Ours arrived when parallel Autopilot hooks wrote to the same canvas at the same time.</p>
+          <p>The canonical JSON could end up with a trailing fragment. IDs could collide. One damaged canvas could make a wider search fall over. The transport was healthy; the notebook itself had been grabbed by two hands at once.</p>
+          <p>We preserved the damaged files, repaired what could be proven from surviving refs, and rebuilt the storage path around locks and atomic replacement. Search learned to report a broken canvas and keep going. Starting the same session became safe and repeatable.</p>
+          <div class="pullquote">Launch day made it visible. Repair day made it real.</div>
+          <p>I trust the tool more because it broke in an understandable way and left enough evidence for us to repair it. That is the whole philosophy, really.</p>
+        </div>
+      </section>
+    </article>
+
+    <section class="product-stage" id="meet" aria-labelledby="meet-title">
+      <div class="product-inner">
+        <div class="product-heading" data-reveal>
+          <div><span class="kicker">So, what is Context Canvas?</span><h2 id="meet-title">A working map with receipts.</h2></div>
+          <p>It keeps a few concise task nodes close to the agent and stores the bulky evidence in referenced files. The agent remembers the shape of the work without pretending every log belongs in permanent memory.</p>
+        </div>
+
+        <div class="canvas-demo" data-reveal>
+          <div class="demo-map" aria-label="Interactive sample Context Canvas">
+            <div class="demo-title">Tap a node to follow the evidence</div>
+            <button class="demo-node d1" type="button" aria-pressed="true" data-title="The question" data-copy="A long task begins with one sentence. The canvas keeps that goal visible when the conversation gets noisy." data-ref="canvas.json · goal"><strong>Question</strong><span>goal: keep the thread</span></button>
+            <button class="demo-node d2" type="button" aria-pressed="false" data-title="The finding" data-copy="A short node records what changed, while its ref points back to the original search result, diff, log, or browser output." data-ref="refs/tc_001.md"><strong>Finding</strong><span>ref: tc_001</span></button>
+            <button class="demo-node d3" type="button" aria-pressed="false" data-title="The verification" data-copy="Finished factual nodes need evidence. A passing test can be summarized in one line because the full result still exists nearby." data-ref="refs/tc_002.md"><strong>Verification</strong><span>status: done</span></button>
+            <button class="demo-node d4" type="button" aria-pressed="false" data-title="The dead end" data-copy="Failed paths stay visible as blocked or deprecated. That keeps the agent from cheerfully repeating the same mistake." data-ref="events.jsonl"><strong>Dead end</strong><span>status: blocked</span></button>
+          </div>
+          <aside class="demo-detail" aria-live="polite">
+            <div>
+              <span class="detail-label">Selected node</span>
+              <h3>The question</h3>
+              <p>A long task begins with one sentence. The canvas keeps that goal visible when the conversation gets noisy.</p>
+            </div>
+            <span class="ref-chip">canvas.json · goal</span>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="principles" aria-labelledby="principles-title">
+      <h2 id="principles-title" data-reveal>Three beliefs survived every version.</h2>
+      <div class="principle-grid">
+        <article class="principle-card" data-reveal><div class="symbol" style="--symbol-bg:#ffe8f3" aria-hidden="true">🗺️</div><h3>Keep the shape</h3><p>A long task is more than a pile of messages. The canvas keeps discoveries, decisions, checks, and dead ends in view.</p></article>
+        <article class="principle-card" data-reveal><div class="symbol" style="--symbol-bg:#e8fbf5" aria-hidden="true">🧾</div><h3>Keep the receipts</h3><p>A confident summary is still a summary. Finished claims should have a short path back to something another person can inspect.</p></article>
+        <article class="principle-card" data-reveal><div class="symbol" style="--symbol-bg:#eceaff" aria-hidden="true">🪶</div><h3>Remember less, better</h3><p>Context Canvas does not try to remember everything forever. It remembers what happened now and where the underlying evidence lives.</p></article>
+      </div>
+    </section>
+
+    <section class="closing" aria-labelledby="closing-title" data-reveal>
+      <span class="date">August 2026 · A note to the next builder</span>
+      <h2 id="closing-title">I still like the pink accents. I like the evidence more.</h2>
+      <p>I do not think agents need more mystical memory. They need better habits around what happened, what was checked, and what can still be verified tomorrow.</p>
+      <p>Context Canvas is my small answer to that. It is cheerful enough to invite you in, boring enough underneath to be trusted, and humble enough to point back to the original work.</p>
+      <p>If it helps one long task survive its own scrollback, the map did its job.</p>
+      <div class="signature">— The engineer behind Context Canvas ✦</div>
+      <div class="hero-actions">
+        <a class="button primary" href="https://github.com/phenomenoner/hermes-agent-harness-plus">Explore on GitHub</a>
+        <a class="button" href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md">Install Context Canvas</a>
+        <a class="button" href="./index.html">Back to Harness Plus</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Context Canvas is part of <a href="https://github.com/phenomenoner/hermes-agent-harness-plus">Hermes Agent Harness Plus</a>, a companion toolbox for <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a>.<br>
+    MIT licensed · <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/NOTICE">third-party notices</a> · <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/technical/context-canvas.md">technical notes</a>
+  </footer>
+
+  <script>
+    (function () {
+      var progress = document.querySelector(".reading-progress");
+      var updateProgress = function () {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var percent = max > 0 ? (window.scrollY / max) * 100 : 0;
+        progress.style.width = Math.min(100, Math.max(0, percent)) + "%";
+      };
+      window.addEventListener("scroll", updateProgress, { passive: true });
+      updateProgress();
+
+      var detail = document.querySelector(".demo-detail");
+      var nodes = document.querySelectorAll(".demo-node");
+      nodes.forEach(function (node) {
+        node.addEventListener("click", function () {
+          nodes.forEach(function (candidate) { candidate.setAttribute("aria-pressed", "false"); });
+          node.setAttribute("aria-pressed", "true");
+          detail.querySelector("h3").textContent = node.getAttribute("data-title");
+          detail.querySelector("p").textContent = node.getAttribute("data-copy");
+          detail.querySelector(".ref-chip").textContent = node.getAttribute("data-ref");
+        });
+      });
+    }());
+  </script>
+</body>
+</html>

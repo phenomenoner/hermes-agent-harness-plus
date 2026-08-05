@@ -18,6 +18,11 @@ to, import, or interoperate with the projects below:
 - FastEmbed — https://github.com/qdrant/fastembed — Apache-2.0 License.
   Minimum documented dependency range: `fastembed>=0.8.0`. Used by the optional
   Qdrant indexing/search scripts when installed.
+- TencentDB-Agent-Memory — https://github.com/TencentCloud/TencentDB-Agent-Memory
+  — conceptual inspiration for the short-term symbolic-memory and Mermaid-map
+  pattern discussed in the Context Canvas origin story. No source code is copied
+  or vendored from this project; the repository currently reports no SPDX license
+  metadata through the GitHub API.
 
 If you add a new adapter or script that copies source from another project,
 record the source, version, and license in this file before publishing.

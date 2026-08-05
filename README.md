@@ -106,6 +106,7 @@ mcp_servers:
 | Guide | What you'll find |
 |---|---|
 | 🌈 [Website](https://phenomenoner.github.io/hermes-agent-harness-plus/) | The pretty tour |
+| ✦ [Context Canvas origin story](https://phenomenoner.github.io/hermes-agent-harness-plus/context-canvas-story.html) | A first-person product diary: the late-night idea, the first live capture, and the repair that made it real |
 | 📦 [Install & enable](docs/install.md) | Step-by-step setup: CLI, MCP, plugin, Qdrant, skills |
 | 🧩 [Component catalog](docs/catalog.md) | Every piece, its purpose, and its safety posture |
 | 🗺️ [Context Canvas internals](docs/technical/context-canvas.md) | Data model & technical notes |
