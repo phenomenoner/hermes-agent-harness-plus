@@ -330,6 +330,7 @@
       content: "";
       position: absolute;
       inset: 0;
+      z-index: 0;
       opacity: 0.22;
       background-image:
         linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
@@ -337,26 +338,46 @@
       background-size: 32px 32px;
     }
 
-    .map-line {
+    .node-flow {
       position: absolute;
+      inset: 0;
       z-index: 1;
-      height: 2px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, var(--pink), var(--violet), var(--sky));
-      transform-origin: left center;
-      animation: draw-line 900ms ease both;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
     }
 
-    .map-line.l1 { width: 34%; left: 19%; top: 31%; transform: rotate(14deg); }
-    .map-line.l2 { width: 31%; left: 49%; top: 45%; transform: rotate(-15deg); animation-delay: 180ms; }
-    .map-line.l3 { width: 34%; left: 20%; top: 65%; transform: rotate(-22deg); animation-delay: 320ms; }
+    .node-flow .flow-line {
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+      filter: drop-shadow(0 3px 7px rgba(111, 99, 234, 0.28));
+      transition: opacity 180ms ease, stroke-width 180ms ease;
+    }
+
+    .node-flow .is-blocked { stroke-dasharray: 6 7; }
+    .hero-flow .flow-line { opacity: 0.92; }
+    .demo-flow .flow-line { opacity: 0.26; }
+
+    .demo-map[data-active="question"] .edge-qf,
+    .demo-map[data-active="finding"] .flow-line,
+    .demo-map[data-active="verification"] .edge-qf,
+    .demo-map[data-active="verification"] .edge-fv,
+    .demo-map[data-active="dead-end"] .edge-qf,
+    .demo-map[data-active="dead-end"] .edge-fd {
+      opacity: 0.96;
+      stroke-width: 3.25;
+    }
 
     .map-node {
       position: absolute;
       z-index: 2;
       display: grid;
       gap: 2px;
-      min-width: 118px;
+      width: 126px;
       padding: 12px 14px;
       border: 1px solid rgba(255, 255, 255, 0.20);
       border-radius: 17px;
@@ -368,10 +389,10 @@
 
     .map-node strong { font-size: 14px; }
     .map-node span { color: rgba(255,255,255,0.68); font-size: 11px; font-family: ui-monospace, monospace; }
-    .map-node.n1 { top: 22%; left: 8%; }
-    .map-node.n2 { top: 39%; left: 39%; }
-    .map-node.n3 { top: 22%; right: 7%; }
-    .map-node.n4 { left: 8%; bottom: 12%; }
+    .map-node.n1 { top: 9%; left: 50%; margin-left: -63px; }
+    .map-node.n2 { top: 40%; left: 50%; margin-left: -63px; }
+    .map-node.n3 { right: 7%; bottom: 9%; }
+    .map-node.n4 { left: 7%; bottom: 9%; }
 
     .terrain-note {
       display: grid;
@@ -587,6 +608,13 @@
       line-height: 1.65;
     }
 
+    .aside-note a {
+      color: #5d55ac;
+      font-weight: 800;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
     .bench {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -786,19 +814,6 @@
       background-size: 34px 34px;
     }
 
-    .demo-map::before,
-    .demo-map::after {
-      content: "";
-      position: absolute;
-      height: 3px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, var(--pink), var(--violet), var(--sky));
-      transform-origin: left center;
-    }
-
-    .demo-map::before { width: 52%; left: 21%; top: 37%; transform: rotate(15deg); }
-    .demo-map::after { width: 46%; left: 31%; top: 68%; transform: rotate(-24deg); }
-
     .demo-title {
       position: relative;
       z-index: 2;
@@ -811,7 +826,8 @@
     .demo-node {
       position: absolute;
       z-index: 3;
-      min-width: 128px;
+      width: 142px;
+      min-width: 0;
       min-height: 58px;
       padding: 11px 14px;
       border: 1px solid rgba(255,255,255,0.24);
@@ -835,10 +851,10 @@
 
     .demo-node strong { display: block; margin-bottom: 3px; font-size: 14px; }
     .demo-node span { color: rgba(255,255,255,0.62); font-family: ui-monospace, monospace; font-size: 10px; }
-    .demo-node.d1 { top: 21%; left: 10%; }
-    .demo-node.d2 { top: 44%; left: 38%; }
-    .demo-node.d3 { top: 24%; right: 8%; }
-    .demo-node.d4 { left: 13%; bottom: 12%; }
+    .demo-node.d1 { top: 17%; left: 50%; margin-left: -71px; }
+    .demo-node.d2 { top: 44%; left: 50%; margin-left: -71px; }
+    .demo-node.d3 { right: 8%; bottom: 9%; }
+    .demo-node.d4 { left: 8%; bottom: 9%; }
 
     .demo-detail {
       display: flex;
@@ -1010,9 +1026,10 @@
       .layer:nth-child(n) { transform: none; }
       .hero-art { min-height: 540px; }
       .window { min-height: 500px; }
-      .map-node { min-width: 104px; padding: 10px 11px; }
-      .map-node.n2 { left: 34%; }
-      .map-node.n3 { right: 4%; }
+      .map-node { width: 112px; padding: 10px 11px; }
+      .map-node.n1, .map-node.n2 { margin-left: -56px; }
+      .map-node.n3 { right: 5%; }
+      .map-node.n4 { left: 5%; }
     }
 
     @media (max-width: 540px) {
@@ -1022,9 +1039,11 @@
       .hero { padding-top: 40px; }
       h1 { font-size: clamp(45px, 14.7vw, 66px); }
       .hero-art { min-height: 500px; padding: 12px; border-radius: 28px; }
+      .hero-art::before { width: 58px; height: 58px; top: -34px; right: 10px; }
       .window { min-height: 474px; border-radius: 22px; }
       .map-stage { min-height: 310px; margin: 12px; }
-      .map-node { min-width: 94px; border-radius: 14px; }
+      .map-node { width: 96px; border-radius: 14px; }
+      .map-node.n1, .map-node.n2 { margin-left: -48px; }
       .map-node strong { font-size: 12px; }
       .map-node span { font-size: 9px; }
       .terrain-note { margin: 0 12px 12px; padding: 13px; }
@@ -1035,11 +1054,10 @@
       .pullquote { padding: 27px 22px 26px; }
       .launch-card { padding: 28px 23px; }
       .demo-map { min-height: 400px; padding: 18px; }
-      .demo-node { min-width: 110px; }
-      .demo-node.d1 { left: 5%; }
-      .demo-node.d2 { left: 35%; }
+      .demo-node { width: 122px; min-width: 0; }
+      .demo-node.d1, .demo-node.d2 { margin-left: -61px; }
       .demo-node.d3 { right: 4%; }
-      .demo-node.d4 { left: 7%; }
+      .demo-node.d4 { left: 4%; }
       .closing { padding: 38px 24px; border-radius: 30px; }
     }
 
@@ -1089,12 +1107,21 @@
             <span class="window-title">context-canvas · the first idea</span>
           </div>
           <div class="map-stage" aria-hidden="true">
-            <span class="map-line l1"></span>
-            <span class="map-line l2"></span>
-            <span class="map-line l3"></span>
+            <svg class="node-flow hero-flow" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false" aria-hidden="true">
+              <defs>
+                <linearGradient id="hero-flow-gradient" gradientUnits="userSpaceOnUse" x1="15" y1="15" x2="85" y2="85">
+                  <stop offset="0%" stop-color="#ff7ab6"></stop>
+                  <stop offset="52%" stop-color="#8e7dff"></stop>
+                  <stop offset="100%" stop-color="#6bbcff"></stop>
+                </linearGradient>
+              </defs>
+              <path class="flow-line edge-qf" stroke="url(#hero-flow-gradient)" d="M50 23 C50 29 50 34 50 40"></path>
+              <path class="flow-line edge-fv" stroke="url(#hero-flow-gradient)" d="M50 54 C50 64 78 66 78 76"></path>
+              <path class="flow-line edge-fd is-blocked" stroke="url(#hero-flow-gradient)" d="M50 54 C50 64 22 66 22 76"></path>
+            </svg>
             <div class="map-node n1"><strong>Golden clue</strong><span>refs/tc_001.md</span></div>
             <div class="map-node n2"><strong>Finding</strong><span>status: done</span></div>
-            <div class="map-node n3"><strong>Verification</strong><span>7 tests passed</span></div>
+            <div class="map-node n3"><strong>Verification</strong><span>checks passed</span></div>
             <div class="map-node n4"><strong>Dead end</strong><span>status: blocked</span></div>
           </div>
           <div class="terrain-note">
@@ -1167,13 +1194,14 @@
           <p>The message was wonderfully direct: push it through Phase 2, test it, and turn it on locally.</p>
           <p>That is my favorite kind of product decision. No committee theater. No ceremonial roadmap. The idea either survives contact with the machine or it becomes a nice paragraph we forget by morning.</p>
           <p>I wrote the tests first. Then the store. Then the command-line tool and the MCP server. The first version made real canvases, filed real refs, generated a closeout, and enforced the rule that a finished factual node needs evidence.</p>
-          <div class="bench" aria-label="First implementation receipts">
-            <div class="receipt"><b>7 passed</b><span>The first focused test run covered the core store, CLI, MCP wrapper, evidence chain, and closeout behavior.</span></div>
-            <div class="receipt"><b>6 tools</b><span>Start, add a ref, update a node, read, search, and close out. Small enough to understand in one breath.</span></div>
-            <div class="receipt"><b>Live</b><span>The gateway called the tools from a real conversation. Configuration alone did not get to claim victory.</span></div>
+          <div class="bench" aria-label="What the first version had to prove">
+            <div class="receipt"><b>Core paths</b><span>The focused checks covered the store, CLI, MCP wrapper, evidence chain, and closeout behavior.</span></div>
+            <div class="receipt"><b>Small surface</b><span>Start, add a ref, update a node, read, search, and close out. Small enough to understand in one breath.</span></div>
+            <div class="receipt"><b>Real session</b><span>The gateway called the tools from an actual conversation. Configuration alone did not get to claim victory.</span></div>
             <div class="receipt"><b>Local</b><span>The canvas lived beside the agent’s own work. No cloud service needed to hold the receipts.</span></div>
           </div>
           <p>I remember the live check more than the unit tests. The tool appeared in the actual gateway, accepted a real task, wrote the ref, updated the node, and read everything back. It was no longer an architecture sketch. It had a pulse.</p>
+          <div class="aside-note">Builder’s note: these early live checks happened before the public repository existed. The linked public record begins with the May 28 commit below.</div>
         </div>
       </section>
 
@@ -1181,10 +1209,10 @@
         <div class="chapter-meta"><span class="chapter-number">05</span><span>Later that night<br>First live capture</span></div>
         <div class="chapter-copy">
           <h2 id="chapter-five">The first time it caught a clue on its own.</h2>
-          <p>Autopilot came next. I fed the live gateway a terminal result a little over seven thousand characters long. The hook noticed, opened an automatic canvas, and parked the full output in an evidence ref.</p>
+          <p>Autopilot came next. I fed the live gateway a deliberately large terminal result. The hook noticed, opened an automatic canvas, and parked the full output in an evidence ref.</p>
           <div class="launch-card">
-            <span class="label">Live probe receipt</span>
-            <h3>Captured terminal via large_result:7129</h3>
+            <span class="label">Early live probe</span>
+            <h3>Captured a large terminal result</h3>
             <p>A very plain line of text. I was embarrassingly happy to see it.</p>
           </div>
           <p>The first thing Autopilot taught me was that automation has opinions even when you did not give it any. It also captured a couple of large skill documents. Technically correct. Slightly noisy. We started tuning the exclusions.</p>
@@ -1199,17 +1227,18 @@
           <p>Thirteen days later, Context Canvas became one of the first pieces inside Hermes Agent Harness Plus. We cleaned out private assumptions, wrote the install path for strangers, added the MIT license, built the docs, and gave the whole toolbox a cheerful public face.</p>
           <p>The initial public commit contained the Canvas library, the MCP sidecar, Autopilot, tests, a skill, and technical notes. Forty files landed together. The number sounds grander than the moment felt. Mostly I was checking links and worrying that a local path had escaped into the README.</p>
           <p>There was one satisfying loop: we used Context Canvas to track the work of publishing Context Canvas. A tool keeping receipts for its own release felt wonderfully on brand.</p>
-          <div class="aside-note">Public commit: 3d2148a · “Initial public harness toolbox” · May 28, 2026</div>
+          <div class="aside-note">Public record: <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/commit/3d2148a">3d2148a · “Initial public harness toolbox” · May 28, 2026</a></div>
         </div>
       </section>
 
       <section class="chapter" aria-labelledby="chapter-seven" data-reveal>
-        <div class="chapter-meta"><span class="chapter-number">07</span><span>July 24, 2026<br>The battle scar</span></div>
+        <div class="chapter-meta"><span class="chapter-number">07</span><span>July 31, 2026<br>Public hardening</span></div>
         <div class="chapter-copy">
           <h2 id="chapter-seven">Then the pretty map tore in half.</h2>
-          <p>A real product eventually has a day when the demo stops being the interesting part. Ours arrived when parallel Autopilot hooks wrote to the same canvas at the same time.</p>
+          <p>A real product eventually has a day when the demo stops being the interesting part. Ours arrived in late July, when parallel Autopilot hooks wrote to the same canvas at the same time.</p>
           <p>The canonical JSON could end up with a trailing fragment. IDs could collide. One damaged canvas could make a wider search fall over. The transport was healthy; the notebook itself had been grabbed by two hands at once.</p>
           <p>We preserved the damaged files, repaired what could be proven from surviving refs, and rebuilt the storage path around locks and atomic replacement. Search learned to report a broken canvas and keep going. Starting the same session became safe and repeatable.</p>
+          <div class="aside-note">Public record: <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/commit/4939061">4939061 · “fix: harden Context Canvas concurrent writes” · July 31, 2026</a></div>
           <div class="pullquote">Launch day made it visible. Repair day made it real.</div>
           <p>I trust the tool more because it broke in an understandable way and left enough evidence for us to repair it. That is the whole philosophy, really.</p>
         </div>
@@ -1224,12 +1253,24 @@
         </div>
 
         <div class="canvas-demo" data-reveal>
-          <div class="demo-map" aria-label="Interactive sample Context Canvas">
+          <div class="demo-map" data-active="question" aria-label="Interactive sample Context Canvas. Question flows to Finding, then branches to Verification or Dead end.">
             <div class="demo-title">Tap a node to follow the evidence</div>
-            <button class="demo-node d1" type="button" aria-pressed="true" data-title="The question" data-copy="A long task begins with one sentence. The canvas keeps that goal visible when the conversation gets noisy." data-ref="canvas.json · goal"><strong>Question</strong><span>goal: keep the thread</span></button>
-            <button class="demo-node d2" type="button" aria-pressed="false" data-title="The finding" data-copy="A short node records what changed, while its ref points back to the original search result, diff, log, or browser output." data-ref="refs/tc_001.md"><strong>Finding</strong><span>ref: tc_001</span></button>
-            <button class="demo-node d3" type="button" aria-pressed="false" data-title="The verification" data-copy="Finished factual nodes need evidence. A passing test can be summarized in one line because the full result still exists nearby." data-ref="refs/tc_002.md"><strong>Verification</strong><span>status: done</span></button>
-            <button class="demo-node d4" type="button" aria-pressed="false" data-title="The dead end" data-copy="Failed paths stay visible as blocked or deprecated. That keeps the agent from cheerfully repeating the same mistake." data-ref="events.jsonl"><strong>Dead end</strong><span>status: blocked</span></button>
+            <svg class="node-flow demo-flow" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false" aria-hidden="true">
+              <defs>
+                <linearGradient id="demo-flow-gradient" gradientUnits="userSpaceOnUse" x1="15" y1="15" x2="85" y2="85">
+                  <stop offset="0%" stop-color="#ff7ab6"></stop>
+                  <stop offset="52%" stop-color="#8e7dff"></stop>
+                  <stop offset="100%" stop-color="#6bbcff"></stop>
+                </linearGradient>
+              </defs>
+              <path class="flow-line edge-qf" stroke="url(#demo-flow-gradient)" d="M50 31 C50 35 50 39 50 44"></path>
+              <path class="flow-line edge-fv" stroke="url(#demo-flow-gradient)" d="M50 58 C50 67 78 68 78 76"></path>
+              <path class="flow-line edge-fd is-blocked" stroke="url(#demo-flow-gradient)" d="M50 58 C50 67 22 68 22 76"></path>
+            </svg>
+            <button class="demo-node d1" type="button" aria-pressed="true" data-key="question" data-title="The question" data-copy="A long task begins with one sentence. The canvas keeps that goal visible when the conversation gets noisy." data-ref="canvas.json · goal"><strong>Question</strong><span>goal: keep the thread</span></button>
+            <button class="demo-node d2" type="button" aria-pressed="false" data-key="finding" data-title="The finding" data-copy="A short node records what changed, while its ref points back to the original search result, diff, log, or browser output." data-ref="refs/tc_001.md"><strong>Finding</strong><span>ref: tc_001</span></button>
+            <button class="demo-node d3" type="button" aria-pressed="false" data-key="verification" data-title="The verification" data-copy="Finished factual nodes need evidence. A passing test can be summarized in one line because the full result still exists nearby." data-ref="refs/tc_002.md"><strong>Verification</strong><span>status: done</span></button>
+            <button class="demo-node d4" type="button" aria-pressed="false" data-key="dead-end" data-title="The dead end" data-copy="Failed paths stay visible as blocked or deprecated. That keeps the agent from cheerfully repeating the same mistake." data-ref="events.jsonl"><strong>Dead end</strong><span>status: blocked</span></button>
           </div>
           <aside class="demo-detail" aria-live="polite">
             <div>
@@ -1284,11 +1325,13 @@
       updateProgress();
 
       var detail = document.querySelector(".demo-detail");
+      var demoMap = document.querySelector(".demo-map");
       var nodes = document.querySelectorAll(".demo-node");
       nodes.forEach(function (node) {
         node.addEventListener("click", function () {
           nodes.forEach(function (candidate) { candidate.setAttribute("aria-pressed", "false"); });
           node.setAttribute("aria-pressed", "true");
+          demoMap.setAttribute("data-active", node.getAttribute("data-key"));
           detail.querySelector("h3").textContent = node.getAttribute("data-title");
           detail.querySelector("p").textContent = node.getAttribute("data-copy");
           detail.querySelector(".ref-chip").textContent = node.getAttribute("data-ref");
