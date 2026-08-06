@@ -368,6 +368,8 @@
       transition: transform 180ms ease, box-shadow 180ms ease;
     }
 
+    .calibrator-card { grid-column: 2; }
+
     .card:hover { transform: translateY(-4px) rotate(-0.4deg); box-shadow: 0 26px 60px rgba(84, 74, 120, 0.16); }
 
     .card::after {
@@ -586,6 +588,7 @@
     @media (max-width: 900px) {
       .statbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .pain, .grid, .steps { grid-template-columns: 1fr; }
+      .calibrator-card { grid-column: auto; }
     }
 
     @media (max-width: 860px) {
@@ -651,7 +654,7 @@
     </section>
 
     <div class="statbar" role="list" aria-label="Project facts">
-      <div class="stat" role="listitem"><b>6+</b><span>pluggable pieces 🧩</span></div>
+      <div class="stat" role="listitem"><b>7+</b><span>pluggable pieces 🧩</span></div>
       <div class="stat" role="listitem"><b>100%</b><span>local-first 🏠</span></div>
       <div class="stat" role="listitem"><b>0</b><span>changes to Hermes core 🪶</span></div>
       <div class="stat" role="listitem"><b>MIT</b><span>do-what-you-love license 📜</span></div>
@@ -670,7 +673,7 @@
 
     <section id="features" aria-label="Features">
       <span class="kicker">🎁 What's in the box</span>
-      <h2 class="section-title">Six little helpers, one happy harness.</h2>
+      <h2 class="section-title">Seven little helpers, one happy harness.</h2>
       <p class="section-lead">Every piece is optional and independent. Take one, take all — Hermes Agent itself is never modified.</p>
       <div class="grid">
         <div class="card" style="--bubble:#ff7ab6"><div class="emoji">🗺️</div><h3>Context Canvas</h3><p>A tiny library that keeps short JSON nodes plus evidence refs — so every finished note has a path back to the facts.</p><a class="story-link" href="./context-canvas-story.html">Read the origin story →</a></div>
@@ -679,6 +682,7 @@
         <div class="card" style="--bubble:#68d8b2"><div class="emoji">🔎</div><h3>Qdrant recall kit</h3><p>Index selected skills and recent sessions into your own local Qdrant — with dry-run previews and secret-pattern redaction.</p></div>
         <div class="card" style="--bubble:#6bbcff"><div class="emoji">🩺</div><h3>Recall watchdog</h3><p>Scheduled health checks that stay quiet on green and get specific on failure — plus bounded Docker restart helpers.</p></div>
         <div class="card" style="--bubble:#ffd166"><div class="emoji">📚</div><h3>Skills & checklists</h3><p>Drop-in Hermes skills and ops checklists that teach the habits: keep the map, find it again, share cleanly.</p></div>
+        <div class="card calibrator-card" style="--bubble:#8e7dff"><div class="emoji">🧭</div><h3>Delegation calibrator</h3><p>Optional complexity × Bayesian evidence for direct versus <code>luna_max</code> — with Baton and the main agent still in charge of judgment.</p><a class="story-link" href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/ops-rules/complexity-bayesian-delegation.md">Read the routing guide →</a></div>
       </div>
     </section>
 
@@ -744,8 +748,8 @@ python -m pytest -q"><button class="copy-btn" type="button">Copy</button><span c
           <p>Nowhere. Canvases live under <code>~/.hermes/context-canvas</code>, and Qdrant recall binds to <code>127.0.0.1</code> by default. Session indexing skips system prompts and tool outputs, redacts common secret patterns, and always supports <code>--dry-run</code> previews.</p>
         </details>
         <details>
-          <summary>Do I need all six pieces?</summary>
-          <p>Not at all — they're independent. Lots of value starts with just the Task Canvas CLI. Add the MCP sidecar, autopilot plugin, or Qdrant recall whenever your workflow asks for them.</p>
+          <summary>Do I need all seven pieces?</summary>
+          <p>Not at all — they're independent. Lots of value starts with just the Task Canvas CLI. Add the MCP sidecar, autopilot plugin, Qdrant recall, or the optional delegation calibrator whenever your workflow asks for them.</p>
         </details>
         <details>
           <summary>What do I need to run it?</summary>

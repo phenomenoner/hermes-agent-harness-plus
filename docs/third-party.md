@@ -12,3 +12,6 @@ Harness Plus is a companion toolbox. It does not vendor the projects below.
   License. Used by optional MCP sidecars.
 - FastEmbed: https://github.com/qdrant/fastembed — Apache-2.0 License. Used by
   optional Qdrant indexing/search scripts.
+- Baton Fanout Skill: https://github.com/phenomenoner/baton-fanout-skill — MIT
+  License. The optional delegation calibrator links to Baton for qualitative
+  dispatch, ownership, and validation guidance; no Baton source is vendored.

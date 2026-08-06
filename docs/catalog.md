@@ -51,6 +51,19 @@
 - Path: `skills/qdrant-recall-sidecar/SKILL.md`
 - Purpose: teach Hermes Agent when to use the harness and what pitfalls to avoid.
 
+## Complexity × Bayesian delegation calibrator
+
+- Path: `scripts/delegation_bayes.py`
+- Guide: `ops-rules/complexity-bayesian-delegation.md`
+- Purpose: score observable task complexity and delegability, compare `direct` with
+  the fixed `luna_max` lane, and learn from independently verified outcomes.
+- Safety posture: Baton remains the qualitative dispatch brake and the main agent
+  owns final integration, validation, and judgment. Hard blockers are
+  deterministic; only primary attempts update the posterior.
+- Data handling: writes normalized JSONL to an XDG/portable user-state default or
+  `BATON_DELEGATION_STORE`; it does not persist raw prompts, logs, paths,
+  identities, secrets, or chain-of-thought.
+
 ## Ops rules
 
 - Path: `ops-rules/public-release-checklist.md`

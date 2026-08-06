@@ -57,6 +57,7 @@ hermes-agent-harness-plus/
 | 🔎 **Qdrant recall kit** | Index selected skills & recent sessions locally; dry-run previews and secret-pattern redaction by default |
 | 🩺 **Recall watchdog** | Quiet when healthy, loud when broken — validates collections after refreshes, container starts, and restarts |
 | 📚 **Public skills** | `context-canvas-memory` & `qdrant-recall-sidecar` — drop-in guidance for any Hermes Agent user |
+| 🧭 **Delegation calibrator** | Optional complexity × Bayesian evidence for direct vs `luna_max`; [Baton](https://github.com/phenomenoner/baton-fanout-skill) remains the qualitative dispatch brake and validation authority |
 
 ---
 
@@ -111,6 +112,7 @@ mcp_servers:
 | 🧩 [Component catalog](docs/catalog.md) | Every piece, its purpose, and its safety posture |
 | 🗺️ [Context Canvas internals](docs/technical/context-canvas.md) | Data model & technical notes |
 | 🔎 [Qdrant recall internals](docs/technical/qdrant-recall.md) | Indexing, collections & health checks |
+| 🧭 [Delegation calibrator](ops-rules/complexity-bayesian-delegation.md) | Optional complexity × Bayesian routing evidence; Baton remains the dispatch brake and the main agent owns final judgment |
 | 🚀 [Release manifest](docs/release-manifest.md) | What ships in each bundle |
 
 ---
