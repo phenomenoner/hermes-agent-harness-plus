@@ -3,7 +3,8 @@
 Initial public bundle:
 
 - Context Canvas package, CLI, and MCP server.
-- Context Canvas Autopilot plugin.
+- Context Canvas Autopilot v2 plugin plus source-only replay and reverse-shadow
+  soak reporting scripts.
 - Qdrant skill/session indexing, MCP search, refresh, and health-check scripts.
 - Skills for Task Canvas and Qdrant recall sidecars.
 - Optional complexity × Bayesian delegation calibrator with score, recommend,

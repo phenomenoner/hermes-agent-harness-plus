@@ -21,10 +21,14 @@
 ## Context Canvas Autopilot plugin
 
 - Path: `plugins/context-canvas-autopilot/`
-- Purpose: write evidence automatically after the task becomes tool-heavy or a
-  tool result is large.
-- Safety posture: fail-open, metadata-only for loaded skills, excludes memory and
-  canvas tools to avoid recursion.
+- Purpose: cache full sanitized point-in-time tool results outside Canvas
+  search, then promote only failures, verifications, and state changes into a
+  compact semantic map.
+- Safety posture: fail-open, force-redacted before persistence, data URLs moved
+  to content-addressed binary objects, Canvas self-calls excluded, and legacy
+  policy comparisons written as content-free private metrics.
+- Soak helpers: `scripts/context_canvas_v2_replay.py` and
+  `scripts/context_canvas_v2_soak_report.py`.
 
 ## Qdrant scripts
 

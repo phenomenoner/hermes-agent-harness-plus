@@ -42,7 +42,7 @@ Everything is **opt-in, local-first, and fail-open**. Take one piece or take the
 ```text
 hermes-agent-harness-plus/
 ├── 📦 packages/context-canvas/          Task Canvas library + CLI + MCP wrappers
-├── 🤖 plugins/context-canvas-autopilot/ Auto-writes evidence after heavy tool use
+├── 🤖 plugins/context-canvas-autopilot/ Full snapshot cache + selective map
 ├── 🔧 scripts/                          Qdrant & Canvas helpers: MCP, indexing, watchdogs
 ├── 📚 skills/                           Teach Hermes when & how to use the harness
 ├── ✅ ops-rules/                        Release / handoff / scheduled-job checklists
@@ -53,7 +53,7 @@ hermes-agent-harness-plus/
 |---|---|
 | 🗺️ **Context Canvas** | Short JSON nodes + evidence refs — the agent keeps the *shape* of the work and a path back to the facts |
 | 🛰️ **Canvas MCP sidecar** | Native MCP tools: `canvas_start`, `canvas_add_ref`, `canvas_upsert_node`, `canvas_read`, `canvas_search`, `canvas_closeout` |
-| 🤖 **Autopilot plugin** | Watches completed tool calls, writes evidence when things get long or large — never touches conversation history |
+| 🤖 **Autopilot plugin** | Lightweight v2 snapshot cache + selective semantic map, with reverse-shadow metrics for comparing the legacy policy before live retirement |
 | 🔎 **Qdrant recall kit** | Index selected skills & recent sessions locally; dry-run previews and secret-pattern redaction by default |
 | 🩺 **Recall watchdog** | Quiet when healthy, loud when broken — validates collections after refreshes, container starts, and restarts |
 | 📚 **Public skills** | `context-canvas-memory` & `qdrant-recall-sidecar` — drop-in guidance for any Hermes Agent user |
@@ -95,9 +95,9 @@ mcp_servers:
 ## 🧭 Design principles
 
 - 🏠 **Local-first.** Your notes, your sessions, your Qdrant on `127.0.0.1`. Nothing leaves home.
-- 🪶 **Featherweight.** Optional pieces around Hermes Agent — zero changes to Hermes itself.
+- 🪶 **Featherweight.** Optional pieces around Hermes Agent — zero changes to Hermes itself. Context Canvas v2 stays focused on snapshot/cache, selective semantic projection, and reverse-shadow quality checks.
 - 🛟 **Fail-open.** If a helper can't write, your session continues like nothing happened.
-- 🔍 **Preview before index.** `--dry-run` everywhere; secret patterns redacted; system prompts & tool outputs skipped by default.
+- 🔍 **Separate cache from index.** Full sanitized snapshots stay recoverable in a private content-addressed cache; only selected evidence enters the semantic map.
 - 🧾 **Evidence or it didn't happen.** Every finished note points to a ref you can verify: `node summary → evidence ref → original content`.
 
 ---
@@ -111,6 +111,7 @@ mcp_servers:
 | 📦 [Install & enable](docs/install.md) | Step-by-step setup: CLI, MCP, plugin, Qdrant, skills |
 | 🧩 [Component catalog](docs/catalog.md) | Every piece, its purpose, and its safety posture |
 | 🗺️ [Context Canvas internals](docs/technical/context-canvas.md) | Data model & technical notes |
+| 🧾 [Context Canvas v2 reverse shadow](docs/technical/context-canvas-v2-reverse-shadow.md) | Lightweight snapshot/cache, reverse-shadow soak defaults & live-shadow retirement gates |
 | 🔎 [Qdrant recall internals](docs/technical/qdrant-recall.md) | Indexing, collections & health checks |
 | 🧭 [Delegation calibrator](ops-rules/complexity-bayesian-delegation.md) | Optional complexity × Bayesian routing evidence; Baton remains the dispatch brake and the main agent owns final judgment |
 | 🚀 [Release manifest](docs/release-manifest.md) | What ships in each bundle |

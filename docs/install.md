@@ -47,32 +47,53 @@ Restart Hermes Agent after changing MCP configuration. The tools will appear as
 
 ## 5. Enable the optional autopilot plugin
 
-The autopilot plugin observes completed tool calls and writes evidence after a
-long or large tool-use pattern. It is deliberately conservative: it never edits
-conversation history, never mutates compression, and fails open if it cannot
-write a canvas.
+Autopilot v2 is a lightweight functional plugin: it keeps full sanitized
+point-in-time tool results in a private, compressed, content-addressed cache.
+The semantic Canvas stays small: only failures, successful verification
+commands, and state-changing actions are promoted. The plugin never edits
+conversation history, never changes a tool result, and fails open if persistence
+is unavailable.
 
 ```bash
 mkdir -p ~/.hermes/plugins
 cp -R plugins/context-canvas-autopilot ~/.hermes/plugins/
 ```
 
-Then add the plugin key to your Hermes config:
+Then enable and configure the plugin in Hermes `config.yaml`:
 
 ```yaml
 plugins:
   enabled:
     - context-canvas-autopilot
+  entries:
+    context-canvas-autopilot:
+      mode: v2_active_legacy_shadow
+      revision: 0.2.3-reverse-shadow-r4
+      cache_root: ~/.hermes/context-canvas-cache-v2
+      metrics_root: ~/.hermes/context-canvas-soak/v2-active-legacy-shadow
+      retention_class: ephemeral-cache
+      retention_days: 30
+      max_semantic_refs: 12
+      legacy_tool_threshold: 5
+      legacy_large_result_chars: 6000
+      legacy_max_ref_chars: 50000
+      metrics_enabled: true
+      require_hermes_redactor: true
 ```
 
-Optional tuning:
+`v2_active_legacy_shadow` makes v2 the real persistence path while evaluating
+the old v1 policy on the same event. The shadow writes only content-free
+comparison metrics — never duplicate payloads, refs, or nodes. See the
+[reverse-shadow design](technical/context-canvas-v2-reverse-shadow.md) for the
+registered soak gates and rollback modes. Its lightweight live-soak defaults are
+48 hours, 100 eligible events across 5 sessions, at least 70% semantic-node
+reduction, and at most 80% active storage/raw ratio; hard functional/integrity
+gates remain zero. Source replay is candidate evidence only, not live retirement
+evidence, so keep the legacy shadow enabled until the live soak passes.
 
-```bash
-export HERMES_CONTEXT_CANVAS_TOOL_THRESHOLD=5
-export HERMES_CONTEXT_CANVAS_LARGE_RESULT_CHARS=6000
-export HERMES_CONTEXT_CANVAS_MAX_REF_CHARS=50000
-export HERMES_CONTEXT_CANVAS_TOOL=/absolute/path/to/hermes-agent-harness-plus/packages/context-canvas
-```
+The old `HERMES_CONTEXT_CANVAS_*` behavior variables are compatibility
+fallbacks only. `HERMES_CONTEXT_CANVAS_TOOL` may still point at an installed
+Context Canvas package when the plugin is copied separately from this repo.
 
 Restart Hermes Agent so plugin hooks are loaded.
 

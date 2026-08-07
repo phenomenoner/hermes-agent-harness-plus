@@ -260,3 +260,111 @@ store.upsert_node(
     assert sum(event["event"] == "canvas_started" for event in events) == 1
     assert sum(event["event"] == "ref_added" for event in events) == workers
     assert sum(event["event"] == "node_added" for event in events) == workers
+
+
+def test_start_metadata_and_update_metadata_are_preserved(tmp_path):
+    store = CanvasStore(root=tmp_path)
+    store.start(
+        goal="v2 projection",
+        session_id="metadata",
+        metadata={"mode": "v2_active", "lifecycle": "active"},
+    )
+
+    updated = store.update_metadata("metadata", {"lifecycle": "closed"})
+
+    assert updated["metadata"]["mode"] == "v2_active"
+    assert updated["metadata"]["lifecycle"] == "closed"
+    canvas = json.loads((tmp_path / "metadata" / "canvas.json").read_text())
+    assert canvas["metadata"]["lifecycle"] == "closed"
+
+
+def test_record_evidence_node_aggregates_bounded_refs_atomically(tmp_path):
+    store = CanvasStore(root=tmp_path)
+    store.start(goal="aggregate", session_id="aggregate")
+
+    for index in range(5):
+        store.record_evidence_node(
+            "aggregate",
+            content=f"manifest pointer {index}",
+            label="v2 verification snapshot",
+            source="unit test",
+            ref_kind="snapshot-manifest-pointer",
+            node_kind="verification",
+            node_status="done",
+            node_summary=f"verification {index}",
+            node_id="AUTO_V2_VERIFICATIONS",
+            max_refs=3,
+        )
+
+    canvas = json.loads((tmp_path / "aggregate" / "canvas.json").read_text())
+    assert len(canvas["nodes"]) == 1
+    assert canvas["nodes"][0]["refs"] == ["refs/tc_003.md", "refs/tc_004.md", "refs/tc_005.md"]
+    assert len(list((tmp_path / "aggregate" / "refs").glob("tc_*.md"))) == 5
+    assert all((tmp_path / "aggregate" / ref).exists() for ref in canvas["nodes"][0]["refs"])
+
+
+def test_mermaid_keeps_ref_ids_visible_when_summary_is_long(tmp_path):
+    store = CanvasStore(root=tmp_path)
+    store.start(goal="projection", session_id="projection")
+    ref = store.add_ref("projection", content="evidence")
+    store.upsert_node(
+        "projection",
+        kind="finding",
+        status="done",
+        summary="x" * 500,
+        refs=[ref["ref"]],
+    )
+
+    mermaid = (tmp_path / "projection" / "canvas.mmd").read_text()
+    assert "ref: tc_001" in mermaid
+
+
+def test_rejects_lossy_or_ambiguous_session_ids(tmp_path):
+    store = CanvasStore(root=tmp_path)
+
+    with pytest.raises(ValueError, match="collision-free"):
+        store.start(goal="unsafe", session_id="a/b")
+    store.start(goal="safe", session_id="a-b")
+    with pytest.raises(ValueError, match="collision-free"):
+        store.read("a/b")
+
+
+def test_factual_node_rejects_missing_ref(tmp_path):
+    store = CanvasStore(root=tmp_path)
+    store.start(goal="ref integrity", session_id="ref-integrity")
+
+    with pytest.raises(FileNotFoundError):
+        store.upsert_node(
+            "ref-integrity",
+            kind="finding",
+            status="done",
+            summary="must have committed evidence",
+            refs=["refs/tc_999.md"],
+        )
+
+
+def test_search_never_follows_symlink_ref(tmp_path):
+    store = CanvasStore(root=tmp_path / "canvas")
+    store.start(goal="symlink guard", session_id="symlink-guard")
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside-secret-marker", encoding="utf-8")
+    link = tmp_path / "canvas" / "symlink-guard" / "refs" / "tc_999.md"
+    link.symlink_to(outside)
+
+    result = store.search("outside-secret-marker")
+
+    assert result["hits"] == []
+    assert result["skipped_count"] >= 1
+
+
+def test_canvas_files_and_directories_are_owner_only(tmp_path):
+    store = CanvasStore(root=tmp_path / "canvas")
+    store.start(goal="private", session_id="private")
+    ref = store.add_ref("private", "evidence")
+    session = tmp_path / "canvas" / "private"
+
+    assert os.stat(tmp_path / "canvas").st_mode & 0o077 == 0
+    assert os.stat(session).st_mode & 0o077 == 0
+    assert os.stat(session / "refs").st_mode & 0o077 == 0
+    assert os.stat(session / "canvas.json").st_mode & 0o077 == 0
+    assert os.stat(session / ref["ref"]).st_mode & 0o077 == 0

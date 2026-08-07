@@ -2,6 +2,13 @@
 
 A Task Canvas is a small evidence-backed working map for an agent task.
 
+Autopilot v2 keeps the working map separate from its point-in-time snapshot
+cache. Full sanitized invocation/result envelopes live under
+`~/.hermes/context-canvas-cache-v2`; only selected manifest pointers become
+Canvas refs and nodes. See
+[Context Canvas v2 reverse shadow](context-canvas-v2-reverse-shadow.md) for the
+cache layout, policy, benchmark, and retirement gates.
+
 Canonical state lives in JSON and JSONL:
 
 ```text
