@@ -135,7 +135,27 @@ from recurring maintenance:
 This keeps short-lived follow-up checks useful without growing a second layer of
 maintenance jobs.
 
-## 8. Close out with evidence
+## 8. Verify restarts from outside the process being restarted
+
+A helper launched by a service may inherit that service's process group or
+supervisor scope. If it stops or restarts its own parent, the helper may be
+terminated at the same boundary. Treat the restart signal as **pending**, not as
+proof that the service returned healthy.
+
+For restart-sensitive checks:
+
+- finish and record every pre-restart audit before signalling the service;
+- run post-restart verification from an independent supervisor, timer, CI job,
+  or fresh process that is not owned by the old service;
+- confirm the new process identity or start time, readiness, and one real domain
+  query before declaring recovery;
+- keep rollback or manual-recovery instructions available if the independent
+  verifier never reports back.
+
+This boundary also applies to one-shot probes: a probe that shares the failure
+or shutdown scope of its target cannot independently verify that target.
+
+## 9. Close out with evidence
 
 A useful closeout note says:
 
