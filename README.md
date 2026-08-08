@@ -52,7 +52,7 @@ hermes-agent-harness-plus/
 | Component | Superpower |
 |---|---|
 | 🗺️ **Context Canvas** | Short JSON nodes + evidence refs — the agent keeps the *shape* of the work and a path back to the facts |
-| 🛰️ **Canvas MCP sidecar** | Native MCP tools: `canvas_start`, `canvas_add_ref`, `canvas_upsert_node`, `canvas_read`, `canvas_search`, `canvas_closeout` |
+| 🛰️ **Canvas MCP sidecar** | Native MCP tools: start/read/search/closeout, recover recent canvas IDs with `canvas_recent`, or atomically attach evidence + a node with `canvas_record` |
 | 🤖 **Autopilot plugin** | Lightweight v2 snapshot cache + selective semantic map, with reverse-shadow metrics for comparing the legacy policy before live retirement |
 | 🔎 **Qdrant recall kit** | Index selected skills & recent sessions locally; dry-run previews and secret-pattern redaction by default |
 | 🩺 **Recall watchdog** | Quiet when healthy, loud when broken — validates collections after refreshes, container starts, and restarts |

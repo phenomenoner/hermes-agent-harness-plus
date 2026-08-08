@@ -368,3 +368,55 @@ def test_canvas_files_and_directories_are_owner_only(tmp_path):
     assert os.stat(session / "refs").st_mode & 0o077 == 0
     assert os.stat(session / "canvas.json").st_mode & 0o077 == 0
     assert os.stat(session / ref["ref"]).st_mode & 0o077 == 0
+
+
+def test_node_validation_explains_allowed_values_and_accepts_gap(tmp_path):
+    store = CanvasStore(root=tmp_path)
+    store.start(goal="Actionable schema", session_id="schema")
+    ref = store.add_ref("schema", content="Qdrant recall is stale", kind="gap")
+
+    node = store.upsert_node(
+        "schema",
+        kind="gap",
+        status="blocked",
+        summary="Semantic index refresh needs separate authorization",
+        refs=[ref["ref"]],
+    )
+
+    assert node["node"]["kind"] == "gap"
+    with pytest.raises(ValueError, match=r"invalid kind: accepted; allowed: .*finding"):
+        store.upsert_node("schema", kind="accepted", status="doing", summary="bad kind")
+    with pytest.raises(ValueError, match=r"invalid status: accepted; allowed: .*done"):
+        store.upsert_node("schema", kind="plan", status="accepted", summary="bad status")
+
+
+def test_recent_recovers_session_ids_and_filters_without_corrupt_blocking(tmp_path):
+    store = CanvasStore(root=tmp_path)
+    store.start(goal="Older governance task", session_id="older", title="Governance")
+    store.start(goal="Context Canvas usability repair", session_id="canvas-ux", title="Canvas UX")
+
+    older_path = tmp_path / "older" / "canvas.json"
+    older = json.loads(older_path.read_text())
+    older["updated_at"] = "2026-08-07T10:00:00+08:00"
+    older_path.write_text(json.dumps(older))
+    recent_path = tmp_path / "canvas-ux" / "canvas.json"
+    recent = json.loads(recent_path.read_text())
+    recent["updated_at"] = "2026-08-08T10:00:00+08:00"
+    recent_path.write_text(json.dumps(recent))
+
+    orphan_dir = tmp_path / "lock-only"
+    orphan_dir.mkdir()
+    (orphan_dir / ".lock").write_text("")
+
+    corrupt_dir = tmp_path / "corrupt"
+    corrupt_dir.mkdir()
+    (corrupt_dir / "canvas.json").write_text("not json")
+
+    listed = store.recent(limit=10)
+    assert [row["session_id"] for row in listed["sessions"]] == ["canvas-ux", "older"]
+    # Lock-only directories left by failed/nonexistent session access are not canvases.
+    assert listed["skipped_count"] == 1
+    assert listed["sessions"][0]["title"] == "Canvas UX"
+
+    filtered = store.recent(query="usability")
+    assert [row["session_id"] for row in filtered["sessions"]] == ["canvas-ux"]

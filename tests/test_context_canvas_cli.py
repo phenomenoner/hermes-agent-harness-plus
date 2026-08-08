@@ -38,3 +38,12 @@ def test_cli_start_ref_node_read_closeout(tmp_path):
 
     closeout = run_cli(tmp_path, "closeout", "cli-s1")
     assert "MemPalace-ready" in closeout["closeout"]
+
+
+def test_cli_recent_lists_and_filters_sessions(tmp_path):
+    run_cli(tmp_path, "start", "--session-id", "first", "--goal", "Other task")
+    run_cli(tmp_path, "start", "--session-id", "canvas-ux", "--goal", "Canvas usability")
+
+    recent = run_cli(tmp_path, "recent", "--query", "usability", "--limit", "5")
+
+    assert [row["session_id"] for row in recent["sessions"]] == ["canvas-ux"]

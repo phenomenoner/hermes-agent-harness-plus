@@ -8,7 +8,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from context_canvas.core import CanvasStore  # noqa: E402
+from context_canvas.core import ALLOWED_KINDS, ALLOWED_STATUSES, CanvasStore  # noqa: E402
 
 
 def emit(data: dict) -> None:
@@ -35,8 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("upsert-node", help="Add or update a node")
     p.add_argument("session_id")
     p.add_argument("--node-id", default=None)
-    p.add_argument("--kind", required=True)
-    p.add_argument("--status", required=True)
+    p.add_argument("--kind", required=True, choices=sorted(ALLOWED_KINDS))
+    p.add_argument("--status", required=True, choices=sorted(ALLOWED_STATUSES))
     p.add_argument("--summary", required=True)
     p.add_argument("--ref", action="append", dest="refs", default=[])
     p.add_argument("--depends-on", action="append", default=[])
@@ -48,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("search", help="Search canvas nodes/refs")
     p.add_argument("query")
     p.add_argument("--session-id", default=None)
+    p.add_argument("--limit", type=int, default=10)
+
+    p = sub.add_parser("recent", help="List recent canvases and recover session ids")
+    p.add_argument("--query", default=None, help="Optional substring in session id, title, or goal")
     p.add_argument("--limit", type=int, default=10)
 
     p = sub.add_parser("closeout", help="Write a MemPalace-ready closeout pack")
@@ -71,6 +75,8 @@ def main(argv: list[str] | None = None) -> int:
             emit(store.read(args.session_id, include_refs=args.include_refs))
         elif args.command == "search":
             emit(store.search(args.query, session_id=args.session_id, limit=args.limit))
+        elif args.command == "recent":
+            emit(store.recent(query=args.query, limit=args.limit))
         elif args.command == "closeout":
             emit(store.closeout(args.session_id, write_ref=not args.no_write_ref))
         else:

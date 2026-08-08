@@ -10,7 +10,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Literal, TypeVar, cast
 
 try:  # Linux/WSL cross-process locking; the thread lock remains the fallback.
     import fcntl
@@ -18,13 +18,27 @@ except ImportError:  # pragma: no cover - exercised only on non-POSIX hosts
     fcntl = None  # type: ignore[assignment]
 
 SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_.-]+")
-FACTUAL_KINDS = {"finding", "action", "decision", "blocked", "verification"}
+NodeKind = Literal[
+    "action",
+    "assumption",
+    "blocked",
+    "decision",
+    "finding",
+    "gap",
+    "plan",
+    "question",
+    "verification",
+]
+NodeStatus = Literal["blocked", "deprecated", "doing", "done", "planned", "verify"]
+
+FACTUAL_KINDS = {"finding", "action", "decision", "blocked", "gap", "verification"}
 NONFACTUAL_KINDS = {"plan", "question", "assumption"}
 ALLOWED_STATUSES = {"doing", "done", "blocked", "deprecated", "verify", "planned"}
 ALLOWED_KINDS = FACTUAL_KINDS | NONFACTUAL_KINDS
 
 _THREAD_LOCKS_GUARD = threading.Lock()
 _THREAD_LOCKS: dict[str, threading.RLock] = {}
+_ChoiceT = TypeVar("_ChoiceT", bound=str)
 
 
 def _thread_lock_for(path: Path) -> threading.RLock:
@@ -85,6 +99,14 @@ def _bounded_header(value: str, *, limit: int) -> str:
 
 def _quoted_content(value: str) -> str:
     return str(value).replace("\x00", "\\0").replace("```", "`\u200b``")
+
+
+def _validated_choice(value: _ChoiceT, *, field: str, allowed: set[str]) -> _ChoiceT:
+    normalized = str(value).strip()
+    if normalized not in allowed:
+        choices = ", ".join(sorted(allowed))
+        raise ValueError(f"invalid {field}: {normalized}; allowed: {choices}")
+    return cast(_ChoiceT, normalized)
 
 
 class CanvasStore:
@@ -435,19 +457,15 @@ class CanvasStore:
         self,
         session_id: str,
         *,
-        kind: str,
-        status: str,
+        kind: NodeKind,
+        status: NodeStatus,
         summary: str,
         refs: list[str] | None = None,
         depends_on: list[str] | None = None,
         node_id: str | None = None,
     ) -> dict[str, Any]:
-        kind = kind.strip()
-        status = status.strip()
-        if kind not in ALLOWED_KINDS:
-            raise ValueError(f"invalid kind: {kind}")
-        if status not in ALLOWED_STATUSES:
-            raise ValueError(f"invalid status: {status}")
+        kind = _validated_choice(kind, field="kind", allowed=ALLOWED_KINDS)
+        status = _validated_choice(status, field="status", allowed=ALLOWED_STATUSES)
         if not summary.strip():
             raise ValueError("summary is required")
         if len(summary) > 4000:
@@ -501,8 +519,8 @@ class CanvasStore:
         label: str,
         source: str,
         ref_kind: str,
-        node_kind: str,
-        node_status: str,
+        node_kind: NodeKind,
+        node_status: NodeStatus,
         node_summary: str,
         node_id: str | None = None,
         depends_on: list[str] | None = None,
@@ -516,10 +534,8 @@ class CanvasStore:
         """
         if not content:
             raise ValueError("content is required")
-        if node_kind not in ALLOWED_KINDS:
-            raise ValueError(f"invalid kind: {node_kind}")
-        if node_status not in ALLOWED_STATUSES:
-            raise ValueError(f"invalid status: {node_status}")
+        node_kind = _validated_choice(node_kind, field="kind", allowed=ALLOWED_KINDS)
+        node_status = _validated_choice(node_status, field="status", allowed=ALLOWED_STATUSES)
         if not node_summary.strip():
             raise ValueError("node_summary is required")
         if len(node_summary) > 4000:
@@ -632,6 +648,84 @@ class CanvasStore:
                     refs[rel] = self._read_controlled_text(safe_path)
                 out["refs"] = refs
             return out
+
+    def recent(self, query: str | None = None, limit: int = 10) -> dict[str, Any]:
+        """List recent canvases so callers can recover a lost session id.
+
+        The optional query matches session id, title, or goal. Corrupt sessions
+        are reported but never prevent discovery of healthy canvases.
+        """
+        q = str(query or "").strip().lower()
+        hit_limit = min(100, max(1, int(limit)))
+        sessions: list[dict[str, Any]] = []
+        skipped_sessions: list[dict[str, str]] = []
+        if self.root.exists():
+            for path in self.root.iterdir():
+                try:
+                    info = path.lstat()
+                    if not stat.S_ISDIR(info.st_mode):
+                        continue
+                    canvas_path = path / "canvas.json"
+                    try:
+                        canvas_info = canvas_path.lstat()
+                    except FileNotFoundError:
+                        # Session locking can leave an empty/lock-only directory
+                        # after a lookup miss; it is not a canvas to recover.
+                        continue
+                    if not stat.S_ISREG(canvas_info.st_mode):
+                        raise RuntimeError(f"canvas path is not a regular file: {canvas_path}")
+                    canvas = self._load_canvas(path.name)
+                    identity = " ".join(
+                        str(canvas.get(field, ""))
+                        for field in ("session_id", "title", "goal")
+                    ).lower()
+                    if q and q not in identity:
+                        continue
+                    refs_dir = path / "refs"
+                    ref_count = 0
+                    if refs_dir.exists():
+                        for ref_path in refs_dir.glob("tc_*.md"):
+                            try:
+                                if stat.S_ISREG(ref_path.lstat().st_mode):
+                                    ref_count += 1
+                            except OSError:
+                                continue
+                    sessions.append(
+                        {
+                            "session_id": canvas["session_id"],
+                            "title": canvas.get("title", ""),
+                            "goal": canvas.get("goal", ""),
+                            "updated_at": canvas.get("updated_at", ""),
+                            "node_count": len(canvas.get("nodes", [])),
+                            "ref_count": ref_count,
+                        }
+                    )
+                except (OSError, UnicodeError, ValueError, RuntimeError) as exc:
+                    skipped_sessions.append(
+                        {
+                            "session_id": path.name,
+                            "error": type(exc).__name__,
+                            "detail": str(exc)[:300],
+                        }
+                    )
+
+        def updated_timestamp(row: dict[str, Any]) -> float:
+            try:
+                return datetime.fromisoformat(str(row.get("updated_at", ""))).timestamp()
+            except (TypeError, ValueError):
+                return 0.0
+
+        sessions.sort(
+            key=lambda row: (updated_timestamp(row), str(row.get("session_id", ""))),
+            reverse=True,
+        )
+        return {
+            "ok": True,
+            "query": query or "",
+            "sessions": sessions[:hit_limit],
+            "skipped_count": len(skipped_sessions),
+            "skipped_sessions": skipped_sessions,
+        }
 
     def search(self, query: str, session_id: str | None = None, limit: int = 10) -> dict[str, Any]:
         q = query.strip().lower()

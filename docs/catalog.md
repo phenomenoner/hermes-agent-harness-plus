@@ -15,8 +15,11 @@
 
 - Path: `scripts/context_canvas_mcp_server.py`
 - Purpose: expose the Task Canvas package to Hermes Agent through native MCP.
-- Tools: `canvas_start`, `canvas_add_ref`, `canvas_upsert_node`, `canvas_read`,
-  `canvas_search`, `canvas_closeout`.
+- Tools: `canvas_start`, `canvas_recent`, `canvas_add_ref`, `canvas_record`,
+  `canvas_upsert_node`, `canvas_read`, `canvas_search`, `canvas_closeout`.
+- Usability contract: node kind/status values are exposed as MCP schema enums;
+  validation errors repeat the allowed values, and `canvas_recent` can recover a
+  session id by recency or a title/goal substring after context loss.
 
 ## Context Canvas Autopilot plugin
 

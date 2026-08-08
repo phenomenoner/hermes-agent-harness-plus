@@ -42,8 +42,11 @@ mcp_servers:
       HERMES_CONTEXT_CANVAS_HOME: "/home/you/.hermes/context-canvas"
 ```
 
-Restart Hermes Agent after changing MCP configuration. The tools will appear as
-`mcp_context_canvas_canvas_start`, `mcp_context_canvas_canvas_add_ref`, and so on.
+Restart Hermes Agent after changing MCP configuration. The tools include
+`mcp_context_canvas_canvas_start`, `mcp_context_canvas_canvas_recent`, and
+`mcp_context_canvas_canvas_record`. Use `canvas_recent` to recover a lost canvas
+id; use `canvas_record` when evidence and its concise node belong in one atomic
+update.
 
 ## 5. Enable the optional autopilot plugin
 
