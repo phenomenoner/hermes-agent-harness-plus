@@ -71,7 +71,8 @@ plugins:
   entries:
     context-canvas-autopilot:
       mode: v2_active_legacy_shadow
-      revision: 0.2.3-reverse-shadow-r4
+      revision: 0.2.4-installed-tool-root
+      tool_root: /absolute/path/to/hermes-agent-harness-plus/packages/context-canvas
       cache_root: ~/.hermes/context-canvas-cache-v2
       metrics_root: ~/.hermes/context-canvas-soak/v2-active-legacy-shadow
       retention_class: ephemeral-cache
@@ -95,8 +96,26 @@ gates remain zero. Source replay is candidate evidence only, not live retirement
 evidence, so keep the legacy shadow enabled until the live soak passes.
 
 The old `HERMES_CONTEXT_CANVAS_*` behavior variables are compatibility
-fallbacks only. `HERMES_CONTEXT_CANVAS_TOOL` may still point at an installed
-Context Canvas package when the plugin is copied separately from this repo.
+fallbacks only. For a copied plugin, set `tool_root` to the package directory as
+shown above. A process-level `HERMES_CONTEXT_CANVAS_TOOL` may still override it;
+an environment value nested under the MCP server config applies only to that
+MCP subprocess and is not inherited by the gateway plugin.
+
+`tool_root` is a **code-execution trust setting**, not a data directory. Use an
+absolute, owner-controlled directory containing regular files
+`context_canvas/__init__.py`, `context_canvas/core.py`, and
+`context_canvas/snapshot.py`. The gateway gives the selected root import
+precedence, revalidates it before use, and rejects imported `context_canvas`
+modules from another origin.
+
+Validation currently requires POSIX effective-UID semantics. It rejects
+symbolic links for the selected root, package directory, or required files;
+group- or world-writable code paths; and replacement-capable ancestors up to a
+protected system-owned boundary. A root-owned sticky directory such as `/tmp`
+is accepted within an otherwise protected ancestor chain. On non-POSIX hosts,
+tool-root activation will fail closed until an equivalent ownership and ACL rule
+is implemented. Never point it at a download, shared writable directory, or
+checkout controlled by another account.
 
 Restart Hermes Agent so plugin hooks are loaded.
 

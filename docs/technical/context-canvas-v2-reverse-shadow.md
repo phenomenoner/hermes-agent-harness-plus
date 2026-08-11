@@ -2,7 +2,7 @@
 
 ## Status
 
-Candidate revision: `0.2.3-reverse-shadow-r4`
+Candidate revision: `0.2.4-installed-tool-root`
 
 This revision covers only the optional Context Canvas soak reporter, package,
 and user plugin. It does not alter Hermes conversation history, model-visible
@@ -94,7 +94,8 @@ plugins:
   entries:
     context-canvas-autopilot:
       mode: v2_active_legacy_shadow
-      revision: 0.2.3-reverse-shadow-r4
+      revision: 0.2.4-installed-tool-root
+      tool_root: /absolute/path/to/hermes-agent-harness-plus/packages/context-canvas
       cache_root: ~/.hermes/context-canvas-cache-v2
       metrics_root: ~/.hermes/context-canvas-soak/v2-active-legacy-shadow
       retention_class: ephemeral-cache
@@ -116,8 +117,26 @@ Modes:
 - `off` — no capture and no metrics.
 
 The old `HERMES_CONTEXT_CANVAS_*` behavior variables are compatibility
-fallbacks only. New configuration uses `config.yaml`; the path-only
-`HERMES_CONTEXT_CANVAS_TOOL` mechanism remains supported.
+fallbacks only. New configuration uses `config.yaml`; copied plugins should set
+`tool_root`. A process-level `HERMES_CONTEXT_CANVAS_TOOL` remains supported as
+an override, but an environment value scoped to the MCP server subprocess is
+not inherited by the gateway plugin.
+
+`tool_root` is a **code-execution trust setting**. It must be an absolute,
+owner-controlled directory with regular `context_canvas/__init__.py`,
+`context_canvas/core.py`, and `context_canvas/snapshot.py` files. Resolution
+revalidates that layout and ownership, gives the selected root import
+precedence, and rejects imported `context_canvas` modules whose origin is
+elsewhere.
+
+Validation currently requires POSIX effective-UID semantics. It rejects
+symbolic links for the selected root, package directory, or required files;
+group- or world-writable code paths; and replacement-capable ancestors up to a
+protected system-owned boundary. A root-owned sticky directory such as `/tmp`
+is accepted within an otherwise protected ancestor chain. On non-POSIX hosts,
+tool-root activation will fail closed until an equivalent ownership and ACL rule
+is implemented. This global import-path mutation is why untrusted or shared
+writable roots are not supported.
 
 ## Pre-registered benchmark
 

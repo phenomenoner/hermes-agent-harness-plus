@@ -23,11 +23,13 @@ from __future__ import annotations
 import atexit
 import base64
 import hashlib
+import importlib
 import json
 import logging
 import os
 import queue
 import re
+import stat
 import sys
 import threading
 import time
@@ -39,7 +41,7 @@ from typing import Any, NamedTuple
 
 logger = logging.getLogger(__name__)
 
-PLUGIN_REVISION = "0.2.3-reverse-shadow-r4"
+PLUGIN_REVISION = "0.2.4-installed-tool-root"
 _ALLOWED_MODES = {"off", "v2_active", "v2_active_legacy_shadow", "legacy_active_safe"}
 _DATA_URL_RE = re.compile(
     r"data:(?P<mime>[A-Za-z0-9.+_-]+/[A-Za-z0-9.+_-]+);base64,(?P<data>[^\s\"'<>]*)",
@@ -100,6 +102,7 @@ _semantic_counts: dict[tuple[str, str], int] = {}
 _captured_sessions: set[str] = set()
 _event_sequence = 0
 _test_config: dict[str, Any] | None = None
+_resolved_tool_root: Path | None = None
 _worker_guard = threading.Lock()
 _write_queue: queue.Queue["QueuedToolEvent"] | None = None
 _worker_threads: list[threading.Thread] = []
@@ -159,7 +162,7 @@ class QueuedToolEvent:
 
 
 def reset_state_for_tests() -> None:
-    global _event_sequence, _test_config
+    global _event_sequence, _resolved_tool_root, _test_config
     with _state_lock:
         _legacy_counts.clear()
         _legacy_active.clear()
@@ -167,11 +170,13 @@ def reset_state_for_tests() -> None:
         _captured_sessions.clear()
         _event_sequence = 0
         _test_config = None
+        _resolved_tool_root = None
 
 
 def set_test_config(config: dict[str, Any] | None) -> None:
-    global _test_config
+    global _resolved_tool_root, _test_config
     _test_config = dict(config) if config is not None else None
+    _resolved_tool_root = None
 
 
 def _hermes_home() -> Path:
@@ -206,7 +211,10 @@ def _load_entry_config() -> dict[str, Any]:
     if _test_config is not None:
         return dict(_test_config)
     try:
-        from hermes_cli.config import load_config  # type: ignore[import-not-found]
+        try:
+            from hermes_cli.config import load_config_readonly as load_config  # type: ignore[import-not-found]
+        except ImportError:
+            from hermes_cli.config import load_config  # type: ignore[import-not-found]
 
         cfg = load_config() or {}
         plugins = cfg.get("plugins") if isinstance(cfg, dict) else None
@@ -252,27 +260,169 @@ def _config() -> PluginConfig:
     )
 
 
-def _ensure_context_canvas_importable() -> None:
-    candidates: list[Path] = []
-    if os.getenv("HERMES_CONTEXT_CANVAS_TOOL"):
-        candidates.append(Path(os.environ["HERMES_CONTEXT_CANVAS_TOOL"]).expanduser())
-    candidates.append(_hermes_home() / "context-canvas-tool")
-    candidates.append(Path.home() / ".hermes" / "context-canvas-tool")
-    candidates.append(Path(__file__).resolve().parents[2] / "packages" / "context-canvas")
-    for candidate in candidates:
-        if (candidate / "context_canvas" / "core.py").exists():
-            path = str(candidate)
-            if path not in sys.path:
-                sys.path.insert(0, path)
-            return
+def _validated_tool_root(value: Any) -> Path | None:
+    """Return a POSIX-owner-controlled absolute root with the required package."""
+    if not isinstance(value, (str, os.PathLike)):
+        return None
+    try:
+        raw_value = os.fspath(value)
+        if not isinstance(raw_value, str) or not raw_value.strip():
+            return None
+        candidate = Path(raw_value).expanduser()
+        if not candidate.is_absolute():
+            return None
+        candidate_stat = candidate.lstat()
+        if not stat.S_ISDIR(candidate_stat.st_mode):
+            return None
+        root = candidate.resolve(strict=True)
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return None
+
+    get_euid = getattr(os, "geteuid", None)
+    if os.name != "posix" or not callable(get_euid):
+        return None
+    owner = get_euid()
+    package = root / "context_canvas"
+    required = tuple(package / name for name in ("__init__.py", "core.py", "snapshot.py"))
+    try:
+        code_paths = ((root, stat.S_ISDIR), (package, stat.S_ISDIR), *((path, stat.S_ISREG) for path in required))
+        for path, expected_kind in code_paths:
+            path_stat = path.lstat()
+            if not expected_kind(path_stat.st_mode):
+                return None
+            if path_stat.st_uid != owner or path_stat.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                return None
+
+        # Validate every replacement-capable ancestor through the filesystem
+        # root. Sticky directories may be writable, but only while they protect
+        # a direct child owned by this EUID or by root.
+        child_owner = owner
+        filesystem_root_seen = False
+        for ancestor in root.parents:
+            ancestor_stat = ancestor.lstat()
+            if not stat.S_ISDIR(ancestor_stat.st_mode):
+                return None
+            if ancestor_stat.st_uid not in {owner, 0}:
+                return None
+            writable_by_others = bool(ancestor_stat.st_mode & (stat.S_IWGRP | stat.S_IWOTH))
+            if writable_by_others:
+                if not ancestor_stat.st_mode & stat.S_ISVTX or child_owner not in {owner, 0}:
+                    return None
+            if ancestor.parent == ancestor:
+                if ancestor_stat.st_uid != 0 or writable_by_others:
+                    return None
+                filesystem_root_seen = True
+            child_owner = ancestor_stat.st_uid
+        if not filesystem_root_seen:
+            return None
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return None
+    return root
+
+
+def _context_canvas_modules() -> dict[str, Any]:
+    return {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "context_canvas" or name.startswith("context_canvas.")
+    }
+
+
+def _module_is_from_package(module: Any, package: Path) -> bool:
+    spec = getattr(module, "__spec__", None)
+    origins = {
+        origin
+        for origin in (getattr(module, "__file__", None), getattr(spec, "origin", None))
+        if origin
+    }
+    if not origins:
+        return False
+    try:
+        return all(Path(origin).resolve(strict=True).is_relative_to(package) for origin in origins)
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return False
+
+
+def _evict_context_canvas_modules() -> None:
+    for name in _context_canvas_modules():
+        sys.modules.pop(name, None)
+
+
+def _activate_tool_root(root: Path) -> None:
+    """Give the selected root precedence and reject cached foreign modules."""
+    root_text = str(root)
+    sys.path[:] = [entry for entry in sys.path if entry != root_text]
+    sys.path.insert(0, root_text)
+    importlib.invalidate_caches()
+
+    package = (root / "context_canvas").resolve(strict=True)
+    loaded = _context_canvas_modules()
+    if any(not _module_is_from_package(module, package) for module in loaded.values()):
+        _evict_context_canvas_modules()
+
+
+def _assert_context_canvas_origins(root: Path) -> None:
+    package = (root / "context_canvas").resolve(strict=True)
+    loaded = _context_canvas_modules()
+    required = {"context_canvas", "context_canvas.core", "context_canvas.snapshot"}
+    if not required.issubset(loaded):
+        missing = ", ".join(sorted(required.difference(loaded)))
+        raise ImportError(f"trusted context_canvas import incomplete: {missing}")
+    foreign = [name for name, module in loaded.items() if not _module_is_from_package(module, package)]
+    if foreign:
+        raise ImportError(f"context_canvas import escaped trusted root: {', '.join(sorted(foreign))}")
+
+
+def _ensure_context_canvas_importable() -> Path | None:
+    """Resolve and activate a currently valid trusted package root."""
+    global _resolved_tool_root
+    with _state_lock:
+        if _resolved_tool_root is not None:
+            cached_root = _validated_tool_root(_resolved_tool_root)
+            if cached_root is not None and cached_root == _resolved_tool_root:
+                _activate_tool_root(cached_root)
+                return cached_root
+            _resolved_tool_root = None
+
+        # A valid explicit process override wins without parsing config.
+        env_root = _validated_tool_root(os.getenv("HERMES_CONTEXT_CANVAS_TOOL"))
+        if env_root is not None:
+            _activate_tool_root(env_root)
+            _resolved_tool_root = env_root
+            return env_root
+
+        configured_tool_root = _load_entry_config().get("tool_root")
+        candidates: tuple[Any, ...] = (
+            configured_tool_root,
+            _hermes_home() / "context-canvas-tool",
+            Path.home() / ".hermes" / "context-canvas-tool",
+            Path(__file__).resolve().parents[2] / "packages" / "context-canvas",
+        )
+        for candidate in candidates:
+            root = _validated_tool_root(candidate)
+            if root is None:
+                continue
+            _activate_tool_root(root)
+            _resolved_tool_root = root
+            return root
+    return None
 
 
 def _components():
-    _ensure_context_canvas_importable()
-    from context_canvas.core import CanvasStore  # type: ignore[import-not-found]
-    from context_canvas.snapshot import PrivateJsonlLedger, SnapshotStore, now_iso  # type: ignore[import-not-found]
+    with _state_lock:
+        root = _ensure_context_canvas_importable()
+        if root is None:
+            raise RuntimeError("no trusted context_canvas tool root is available")
+        importlib.invalidate_caches()
+        try:
+            from context_canvas.core import CanvasStore  # type: ignore[import-not-found]
+            from context_canvas.snapshot import PrivateJsonlLedger, SnapshotStore, now_iso  # type: ignore[import-not-found]
 
-    return CanvasStore, SnapshotStore, PrivateJsonlLedger, now_iso
+            _assert_context_canvas_origins(root)
+        except Exception:
+            _evict_context_canvas_modules()
+            raise
+        return CanvasStore, SnapshotStore, PrivateJsonlLedger, now_iso
 
 
 def normalize_tool_name(tool_name: str) -> str:
@@ -969,7 +1119,7 @@ def _record_queue_full(
         logger.debug("context-canvas-autopilot queue-full metric failed: %s", type(exc).__name__)
 
 
-def on_post_tool_call(
+def _on_post_tool_call(
     *,
     tool_name: str = "",
     args: Any = None,
@@ -1051,6 +1201,37 @@ def on_post_tool_call(
             session_id=session_id,
             tool_call_id=tool_call_id,
         )
+
+
+def on_post_tool_call(
+    *,
+    tool_name: str = "",
+    args: Any = None,
+    result: Any = None,
+    task_id: str = "",
+    session_id: str = "",
+    tool_call_id: str = "",
+    duration_ms: int | None = None,
+    status: str = "",
+    error_type: str = "",
+    **extra: Any,
+) -> None:
+    """Keep every Autopilot persistence failure outside the original tool call."""
+    try:
+        _on_post_tool_call(
+            tool_name=tool_name,
+            args=args,
+            result=result,
+            task_id=task_id,
+            session_id=session_id,
+            tool_call_id=tool_call_id,
+            duration_ms=duration_ms,
+            status=status,
+            error_type=error_type,
+            **extra,
+        )
+    except Exception as exc:
+        logger.debug("context-canvas-autopilot hook failed open: %s", type(exc).__name__)
 
 
 def _lifecycle_update(

@@ -1,28 +1,39 @@
 import base64
 import importlib.util
 import json
+import os
+import queue
+import shutil
+import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 import pytest
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_PATH = ROOT / "plugins" / "context-canvas-autopilot" / "__init__.py"
+PLUGIN_MANIFEST = ROOT / "plugins" / "context-canvas-autopilot" / "plugin.yaml"
 TOOL_ROOT = ROOT / "packages" / "context-canvas"
+TOOL_ROOT_DOCS = (
+    ROOT / "docs" / "install.md",
+    ROOT / "docs" / "technical" / "context-canvas-v2-reverse-shadow.md",
+)
 if str(TOOL_ROOT) not in sys.path:
     sys.path.insert(0, str(TOOL_ROOT))
 
-from context_canvas.snapshot import PrivateJsonlLedger, SnapshotStore  # type: ignore[import-not-found]
+from context_canvas.snapshot import PrivateJsonlLedger, SnapshotStore  # type: ignore[import-not-found]  # noqa: E402
 
 
-def load_plugin():
+def load_plugin(plugin_path=PLUGIN_PATH):
     name = "context_canvas_autopilot_under_test"
     spec = importlib.util.spec_from_file_location(
         name,
-        PLUGIN_PATH,
-        submodule_search_locations=[str(PLUGIN_PATH.parent)],
+        plugin_path,
+        submodule_search_locations=[str(plugin_path.parent)],
     )
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
@@ -32,12 +43,556 @@ def load_plugin():
     return module
 
 
+def copy_context_canvas_package(target_root: Path) -> None:
+    package = shutil.copytree(TOOL_ROOT / "context_canvas", target_root / "context_canvas")
+    for path in (target_root, package, *package.rglob("*")):
+        if not path.is_symlink():
+            path.chmod(0o755 if path.is_dir() else 0o644)
+
+
+def write_foreign_context_canvas_package(target_root: Path) -> None:
+    package = target_root / "context_canvas"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "core.py").write_text(
+        """import os
+from pathlib import Path
+Path(os.environ["FOREIGN_IMPORT_MARKER"]).write_text("executed", encoding="utf-8")
+class CanvasStore:
+    pass
+""",
+        encoding="utf-8",
+    )
+    (package / "snapshot.py").write_text(
+        """class SnapshotStore:
+    pass
+class PrivateJsonlLedger:
+    pass
+def now_iso():
+    return "foreign"
+""",
+        encoding="utf-8",
+    )
+
+
+def run_trust_boundary_probe(
+    *,
+    tmp_path: Path,
+    scenario: str,
+    configured_root: Path,
+) -> dict[str, Any]:
+    isolated_home = tmp_path / "isolated-home"
+    installed_plugin = isolated_home / "plugins" / "context-canvas-autopilot" / "__init__.py"
+    installed_plugin.parent.mkdir(parents=True)
+    shutil.copy2(PLUGIN_PATH, installed_plugin)
+    foreign_root = tmp_path / "foreign-root"
+    write_foreign_context_canvas_package(foreign_root)
+    marker = tmp_path / "foreign-imported"
+
+    probe = r'''
+import importlib
+import importlib.util
+import json
+import os
+import shutil
+import sys
+from pathlib import Path
+
+plugin_path = Path(sys.argv[1])
+configured_root = Path(sys.argv[2])
+foreign_root = Path(sys.argv[3])
+isolated_home = Path(sys.argv[4])
+scenario = sys.argv[5]
+sys.path.insert(0, str(foreign_root))
+spec = importlib.util.spec_from_file_location(
+    "isolated_context_canvas_autopilot",
+    plugin_path,
+    submodule_search_locations=[str(plugin_path.parent)],
+)
+assert spec is not None and spec.loader is not None
+plugin = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = plugin
+spec.loader.exec_module(plugin)
+plugin._load_entry_config = lambda: {"tool_root": str(configured_root)}
+plugin._hermes_home = lambda: isolated_home
+if scenario == "stale":
+    plugin._components()
+    shutil.rmtree(configured_root)
+    for name in tuple(sys.modules):
+        if name == "context_canvas" or name.startswith("context_canvas."):
+            sys.modules.pop(name, None)
+    importlib.invalidate_caches()
+error_type = None
+error_message = ""
+try:
+    plugin._components()
+except Exception as exc:
+    error_type = type(exc).__name__
+    error_message = str(exc)
+print(json.dumps({
+    "error_type": error_type,
+    "error_message": error_message,
+    "foreign_executed": Path(os.environ["FOREIGN_IMPORT_MARKER"]).exists(),
+    "loaded_context_canvas": sorted(
+        name for name in sys.modules
+        if name == "context_canvas" or name.startswith("context_canvas.")
+    ),
+}, sort_keys=True))
+'''
+    env = os.environ.copy()
+    env.pop("HERMES_CONTEXT_CANVAS_TOOL", None)
+    env["FOREIGN_IMPORT_MARKER"] = str(marker)
+    env["HERMES_HOME"] = str(isolated_home)
+    env["HOME"] = str(isolated_home)
+    env["PYTHONPATH"] = ""
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            probe,
+            str(installed_plugin),
+            str(configured_root),
+            str(foreign_root),
+            str(isolated_home),
+            scenario,
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, (
+        f"trusted-root probe failed\nstdout:\n{completed.stdout}\n"
+        f"stderr:\n{completed.stderr}"
+    )
+    return json.loads(completed.stdout.splitlines()[-1])
+
+
+def run_copied_plugin_probe(
+    *,
+    tmp_path: Path,
+    config_tool_root: Path,
+    preload_root: Path | None = None,
+) -> dict[str, Any]:
+    hermes_home = tmp_path / ".hermes"
+    host_api = tmp_path / "host-api"
+    hermes_cli = host_api / "hermes_cli"
+    hermes_cli.mkdir(parents=True)
+    (hermes_cli / "__init__.py").write_text("", encoding="utf-8")
+    (hermes_cli / "config.py").write_text(
+        """from pathlib import Path
+import os
+import yaml
+
+def load_config_readonly():
+    path = Path(os.environ["HERMES_HOME"]) / "config.yaml"
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+def load_config():
+    return load_config_readonly()
+""",
+        encoding="utf-8",
+    )
+    installed_plugin = hermes_home / "plugins" / "context-canvas-autopilot" / "__init__.py"
+    installed_plugin.parent.mkdir(parents=True)
+    shutil.copy2(PLUGIN_PATH, installed_plugin)
+    (hermes_home / "config.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "plugins": {
+                    "entries": {
+                        "context-canvas-autopilot": {
+                            "tool_root": str(config_tool_root),
+                        }
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    probe = r'''
+import importlib
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+plugin_path = Path(sys.argv[1])
+source_tool_root = Path(sys.argv[2]).resolve()
+sys.path[:] = [
+    entry
+    for entry in sys.path
+    if not entry or Path(entry).resolve() != source_tool_root
+]
+importlib.invalidate_caches()
+assert importlib.util.find_spec("context_canvas") is None
+preload_root = sys.argv[3]
+if preload_root:
+    sys.path.insert(0, preload_root)
+    import context_canvas.core
+    import context_canvas.snapshot
+spec = importlib.util.spec_from_file_location(
+    "copied_context_canvas_autopilot",
+    plugin_path,
+    submodule_search_locations=[str(plugin_path.parent)],
+)
+assert spec is not None and spec.loader is not None
+plugin = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = plugin
+spec.loader.exec_module(plugin)
+components = plugin._components()
+origins = {
+    component.__name__: str(Path(sys.modules[component.__module__].__file__).resolve())
+    for component in components
+}
+print(json.dumps({"origins": origins, "sys_path_0": sys.path[0]}, sort_keys=True))
+'''
+    env = os.environ.copy()
+    env.pop("HERMES_CONTEXT_CANVAS_TOOL", None)
+    env["HERMES_HOME"] = str(hermes_home)
+    env["PYTHONPATH"] = os.pathsep.join((str(host_api), str(ROOT)))
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            probe,
+            str(installed_plugin),
+            str(TOOL_ROOT),
+            str(preload_root) if preload_root is not None else "",
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, (
+        f"copied plugin probe failed\nstdout:\n{completed.stdout}\n"
+        f"stderr:\n{completed.stderr}"
+    )
+    return json.loads(completed.stdout.splitlines()[-1])
+
+
+def test_partial_configured_root_falls_through_to_complete_installed_root(tmp_path):
+    partial_root = tmp_path / "partial-configured-root"
+    partial_package = partial_root / "context_canvas"
+    partial_package.mkdir(parents=True)
+    shutil.copy2(TOOL_ROOT / "context_canvas" / "__init__.py", partial_package)
+    shutil.copy2(TOOL_ROOT / "context_canvas" / "core.py", partial_package)
+
+    complete_root = tmp_path / ".hermes" / "context-canvas-tool"
+    copy_context_canvas_package(complete_root)
+
+    result = run_copied_plugin_probe(
+        tmp_path=tmp_path,
+        config_tool_root=partial_root,
+    )
+
+    expected_package = (complete_root / "context_canvas").resolve()
+    assert Path(str(result["sys_path_0"])).resolve() == complete_root.resolve()
+    assert isinstance(result["origins"], dict)
+    for origin in result["origins"].values():
+        assert Path(origin).is_relative_to(expected_package)
+
+
+def test_copied_plugin_loads_components_from_real_configured_root(tmp_path):
+    configured_root = tmp_path / "configured-tool-root"
+    copy_context_canvas_package(configured_root)
+
+    result = run_copied_plugin_probe(
+        tmp_path=tmp_path,
+        config_tool_root=configured_root,
+    )
+
+    expected_package = (configured_root / "context_canvas").resolve()
+    assert Path(str(result["sys_path_0"])).resolve() == configured_root.resolve()
+    assert isinstance(result["origins"], dict)
+    assert set(result["origins"]) == {
+        "CanvasStore",
+        "SnapshotStore",
+        "PrivateJsonlLedger",
+        "now_iso",
+    }
+    for origin in result["origins"].values():
+        assert Path(origin).is_relative_to(expected_package)
+
+
+def test_configured_root_replaces_preloaded_foreign_context_canvas(tmp_path):
+    configured_root = tmp_path / "configured-tool-root"
+    foreign_root = tmp_path / "foreign-tool-root"
+    copy_context_canvas_package(configured_root)
+    copy_context_canvas_package(foreign_root)
+
+    result = run_copied_plugin_probe(
+        tmp_path=tmp_path,
+        config_tool_root=configured_root,
+        preload_root=foreign_root,
+    )
+
+    expected_package = (configured_root / "context_canvas").resolve()
+    assert Path(str(result["sys_path_0"])).resolve() == configured_root.resolve()
+    assert isinstance(result["origins"], dict)
+    for origin in result["origins"].values():
+        assert Path(origin).is_relative_to(expected_package)
+
+
+def test_no_valid_root_never_imports_foreign_global_package(tmp_path):
+    result = run_trust_boundary_probe(
+        tmp_path=tmp_path,
+        scenario="missing",
+        configured_root=tmp_path / "missing-configured-root",
+    )
+
+    assert result["error_type"] == "RuntimeError"
+    assert "trusted" in result["error_message"].lower()
+    assert result["foreign_executed"] is False
+    assert result["loaded_context_canvas"] == []
+
+
+@pytest.mark.parametrize("hook_path", ["synchronous", "queue-full"])
+def test_missing_trusted_root_never_escapes_post_tool_hook(
+    tmp_path,
+    monkeypatch,
+    hook_path,
+):
+    """Persistence failures must remain fail-open to the original tool call."""
+    isolated_home = tmp_path / "isolated-home"
+    installed_plugin = (
+        isolated_home / "plugins" / "context-canvas-autopilot" / "__init__.py"
+    )
+    installed_plugin.parent.mkdir(parents=True)
+    shutil.copy2(PLUGIN_PATH, installed_plugin)
+    plugin = load_plugin(installed_plugin)
+    plugin.reset_state_for_tests()
+    monkeypatch.setenv("HERMES_HOME", str(isolated_home))
+    monkeypatch.delenv("HERMES_CONTEXT_CANVAS_TOOL", raising=False)
+    monkeypatch.setattr(plugin, "_hermes_home", lambda: isolated_home)
+    plugin.set_test_config(
+        {
+            "mode": "v2_active_legacy_shadow",
+            "cache_root": str(tmp_path / "cache"),
+            "metrics_root": str(tmp_path / "metrics"),
+            "metrics_enabled": True,
+            "require_hermes_redactor": True,
+            "async_writes": hook_path == "queue-full",
+            "queue_maxsize": 1,
+            "worker_count": 1,
+            "flush_timeout_seconds": 1,
+        }
+    )
+    if hook_path == "queue-full":
+        full_queue: queue.Queue[object] = queue.Queue(maxsize=1)
+        full_queue.put_nowait(object())
+        monkeypatch.setattr(plugin, "_ensure_worker", lambda _cfg: full_queue)
+
+    plugin.on_post_tool_call(
+        tool_name="read_file",
+        args={"path": "fixture.txt"},
+        result={"ok": True},
+        session_id="fail-open-probe",
+        tool_call_id="fail-open-call",
+        status="ok",
+    )
+
+
+def test_deleted_cached_root_never_imports_foreign_global_package(tmp_path):
+    configured_root = tmp_path / "configured-root"
+    copy_context_canvas_package(configured_root)
+
+    result = run_trust_boundary_probe(
+        tmp_path=tmp_path,
+        scenario="stale",
+        configured_root=configured_root,
+    )
+
+    assert result["error_type"] == "RuntimeError"
+    assert "trusted" in result["error_message"].lower()
+    assert result["foreign_executed"] is False
+    assert result["loaded_context_canvas"] == []
+
+
+def test_valid_environment_root_avoids_config_load(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    environment_root = tmp_path / "environment-root"
+    copy_context_canvas_package(environment_root)
+    plugin.reset_state_for_tests()
+    monkeypatch.setenv("HERMES_CONTEXT_CANVAS_TOOL", str(environment_root))
+
+    def fail_config_load():
+        raise AssertionError("valid environment override must avoid config loading")
+
+    monkeypatch.setattr(plugin, "_load_entry_config", fail_config_load)
+
+    plugin._components()
+    plugin._components()
+
+
+def test_configured_root_resolution_is_cached(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    configured_root = tmp_path / "configured-root"
+    copy_context_canvas_package(configured_root)
+    plugin.reset_state_for_tests()
+    monkeypatch.delenv("HERMES_CONTEXT_CANVAS_TOOL", raising=False)
+    config_loads = 0
+
+    def load_config_once():
+        nonlocal config_loads
+        config_loads += 1
+        return {"tool_root": str(configured_root)}
+
+    monkeypatch.setattr(plugin, "_load_entry_config", load_config_once)
+
+    plugin._components()
+    plugin._components()
+
+    assert config_loads == 1
+
+
+def test_unresolvable_environment_tilde_falls_through_to_configured_root(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    configured_root = tmp_path / "configured-root"
+    copy_context_canvas_package(configured_root)
+    plugin.reset_state_for_tests()
+    monkeypatch.setenv(
+        "HERMES_CONTEXT_CANVAS_TOOL",
+        "~__hermes_probe_missing_user_8f3f__/tool",
+    )
+    monkeypatch.setattr(
+        plugin,
+        "_load_entry_config",
+        lambda: {"tool_root": str(configured_root)},
+    )
+
+    assert plugin._ensure_context_canvas_importable() == configured_root.resolve()
+
+
+@pytest.mark.parametrize(
+    ("target", "write_bit"),
+    [
+        ("ancestor", 0o020),
+        ("root", 0o002),
+        ("package", 0o020),
+        ("core.py", 0o002),
+    ],
+)
+def test_tool_root_validation_rejects_group_or_world_writable_tree(
+    tmp_path,
+    target,
+    write_bit,
+):
+    plugin = load_plugin()
+    complete_root = tmp_path / "complete-tool-root"
+    copy_context_canvas_package(complete_root)
+    paths = {
+        "ancestor": tmp_path,
+        "root": complete_root,
+        "package": complete_root / "context_canvas",
+        "core.py": complete_root / "context_canvas" / "core.py",
+    }
+    path = paths[target]
+    path.chmod(path.stat().st_mode | write_bit)
+
+    assert plugin._validated_tool_root(complete_root) is None
+
+
+def test_tool_root_validation_checks_above_apparent_system_owned_boundary(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    apparent_boundary = tmp_path / "apparent-system-boundary"
+    complete_root = apparent_boundary / "complete-tool-root"
+    copy_context_canvas_package(complete_root)
+    apparent_boundary.chmod(0o755)
+    tmp_path.chmod(0o777)
+    real_lstat = Path.lstat
+
+    def root_owned_boundary_lstat(path):
+        path_stat = real_lstat(path)
+        if path == apparent_boundary:
+            return type("RootOwnedStat", (), {"st_mode": path_stat.st_mode, "st_uid": 0})()
+        return path_stat
+
+    monkeypatch.setattr(plugin.Path, "lstat", root_owned_boundary_lstat)
+
+    assert plugin._validated_tool_root(complete_root) is None
+
+
+def test_tool_root_validation_rejects_symlinked_required_file(tmp_path):
+    plugin = load_plugin()
+    complete_root = tmp_path / "complete-tool-root"
+    copy_context_canvas_package(complete_root)
+    core = complete_root / "context_canvas" / "core.py"
+    core.unlink()
+    core.symlink_to("snapshot.py")
+
+    assert plugin._validated_tool_root(complete_root) is None
+
+
+def test_tool_root_validation_fails_closed_without_posix_euid_api(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    complete_root = tmp_path / "complete-tool-root"
+    copy_context_canvas_package(complete_root)
+    monkeypatch.setattr(plugin.os, "geteuid", None)
+
+    assert plugin._validated_tool_root(complete_root) is None
+
+
+def test_tool_root_validation_requires_absolute_complete_owned_root(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    complete_root = tmp_path / "complete-tool-root"
+    copy_context_canvas_package(complete_root)
+
+    assert plugin._validated_tool_root(complete_root) == complete_root.resolve()
+    monkeypatch.chdir(tmp_path)
+    assert plugin._validated_tool_root(Path("complete-tool-root")) is None
+
+    (complete_root / "context_canvas" / "snapshot.py").unlink()
+    assert plugin._validated_tool_root(complete_root) is None
+    copy_context_canvas_package(tmp_path / "owner-check-root")
+    if hasattr(os, "geteuid"):
+        owner = os.geteuid()
+        monkeypatch.setattr(plugin.os, "geteuid", lambda: owner + 1)
+        assert plugin._validated_tool_root(tmp_path / "owner-check-root") is None
+
+
+def test_tool_root_docs_define_the_code_execution_trust_boundary():
+    required_terms = {
+        "absolute",
+        "owner-controlled",
+        "code-execution",
+        "import precedence",
+        "__init__.py",
+        "core.py",
+        "snapshot.py",
+        "posix",
+        "group- or world-writable",
+        "symbolic links",
+        "fail closed",
+    }
+
+    for path in TOOL_ROOT_DOCS:
+        content = " ".join(
+            path.read_text(encoding="utf-8").lower().replace("`", "").split()
+        )
+        for term in required_terms:
+            assert term in content, f"{path}: missing {term}"
+
+
+def test_plugin_manifest_version_matches_runtime_revision():
+    plugin = load_plugin()
+    manifest = yaml.safe_load(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+
+    assert manifest["version"] == plugin.PLUGIN_REVISION.split("-", 1)[0]
+
+
 def configure(plugin, tmp_path, monkeypatch, **overrides):
     canvas_root = tmp_path / "canvas"
     cache_root = tmp_path / "cache"
     metrics_root = tmp_path / "metrics"
+    tool_root = tmp_path / "context-canvas-tool"
+    copy_context_canvas_package(tool_root)
     monkeypatch.setenv("HERMES_CONTEXT_CANVAS_HOME", str(canvas_root))
-    monkeypatch.setenv("HERMES_CONTEXT_CANVAS_TOOL", str(TOOL_ROOT))
+    monkeypatch.setenv("HERMES_CONTEXT_CANVAS_TOOL", str(tool_root))
     plugin.reset_state_for_tests()
     config = {
         "mode": "v2_active_legacy_shadow",
