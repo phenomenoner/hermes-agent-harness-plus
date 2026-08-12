@@ -9,10 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 TOOL_ROOT = ROOT / "packages" / "context-canvas"
 PLUGIN_PATH = ROOT / "plugins" / "context-canvas-autopilot" / "__init__.py"
 REPORT_PATH = ROOT / "scripts" / "context_canvas_v2_soak_report.py"
+REPLAY_PATH = ROOT / "scripts" / "context_canvas_v2_replay.py"
 if str(TOOL_ROOT) not in sys.path:
     sys.path.insert(0, str(TOOL_ROOT))
 
-from context_canvas.snapshot import PrivateJsonlLedger  # type: ignore[import-not-found]
+from context_canvas.snapshot import (  # type: ignore[import-not-found]  # noqa: E402
+    PrivateJsonlLedger,
+    SnapshotStore,
+)
 
 
 def load_module(path: Path, name: str):
@@ -134,6 +138,149 @@ def test_reporter_metric_schema_accepts_ordered_event_sequence(tmp_path, monkeyp
     rows = PrivateJsonlLedger(metrics_root).read()
     assert [row["event_sequence"] for row in rows] == [1, 2]
     assert all(reporter.validate_metric(row) is None for row in rows)
+
+
+def test_reporter_never_grants_product_or_rollout_authority(tmp_path, monkeypatch):
+    plugin = load_module(PLUGIN_PATH, "context_canvas_autopilot_report_no_authority")
+    cache_root, metrics_root = configure_plugin(plugin, tmp_path, monkeypatch)
+    plugin.on_post_tool_call(
+        tool_name="read_file",
+        args={"path": "fixture.txt"},
+        result="historical safety replay",
+        session_id="report-no-authority",
+        tool_call_id="no-authority",
+        status="ok",
+    )
+    reporter = load_module(REPORT_PATH, "context_canvas_v2_soak_report_no_authority")
+    report = reporter.collect(report_args(reporter, metrics_root, cache_root))
+
+    assert report["product_authority"] == "none"
+    assert report["decision"] == "historical_safety_evidence_only"
+
+
+def test_raw_data_url_detector_requires_one_contiguous_data_url():
+    reporter = load_module(REPORT_PATH, "context_canvas_v2_soak_report_data_url_detector")
+
+    assert reporter.contains_persisted_data_url("data:image/gif;base64,YWJj") is True
+    assert reporter.contains_persisted_data_url("data:image/gif;base64,%%%not-valid%%") is True
+    assert (
+        reporter.contains_persisted_data_url(
+            "documentation mentions `data:` here and `;base64,` somewhere else"
+        )
+        is False
+    )
+
+
+def test_replay_data_url_detector_requires_one_contiguous_data_url(tmp_path):
+    replay = load_module(REPLAY_PATH, "context_canvas_v2_replay_data_url_detector")
+    cache_root = tmp_path / "cache"
+    store = SnapshotStore(cache_root)
+
+    separated = store.put_envelope(
+        {
+            "args": "documentation mentions `data:` here",
+            "result": "and `;base64,` somewhere else",
+        }
+    )
+    store.record_manifest(
+        "separated-terms",
+        {
+            "event_id": "a" * 64,
+            "object_sha256": separated["sha256"],
+            "embedded_objects": [],
+        },
+    )
+    assert replay.canary_violations(cache_root)["data_url_hits"] == 0
+
+    contiguous = store.put_envelope(
+        {"args": {}, "result": "data:image/gif;base64,YWJj"}
+    )
+    store.record_manifest(
+        "contiguous-data-url",
+        {
+            "event_id": "b" * 64,
+            "object_sha256": contiguous["sha256"],
+            "embedded_objects": [],
+        },
+    )
+    assert replay.canary_violations(cache_root)["data_url_hits"] == 1
+
+
+def test_reporter_does_not_flag_separated_data_url_terms_in_snapshot_text(tmp_path, monkeypatch):
+    plugin = load_module(PLUGIN_PATH, "context_canvas_autopilot_report_data_url_terms")
+    cache_root, metrics_root = configure_plugin(plugin, tmp_path, monkeypatch)
+    plugin.on_post_tool_call(
+        tool_name="session_search",
+        args={"query": "data URL docs"},
+        result="documentation mentions `data:` here and `;base64,` somewhere else",
+        session_id="report-data-url-terms",
+        tool_call_id="data-url-terms",
+        status="ok",
+    )
+
+    reporter = load_module(REPORT_PATH, "context_canvas_v2_soak_report_data_url_terms")
+    report = reporter.collect(report_args(reporter, metrics_root, cache_root))
+
+    assert report["hard_gates"]["raw_data_url_text_objects"] == 0
+    assert "raw_data_url_persisted" not in report["hard_gates"]["failures"]
+
+
+def test_reporter_surfaces_removed_invalid_data_url_as_fidelity_loss(tmp_path, monkeypatch):
+    plugin = load_module(PLUGIN_PATH, "context_canvas_autopilot_report_fidelity_loss")
+    cache_root, metrics_root = configure_plugin(plugin, tmp_path, monkeypatch)
+    malformed = "data:image/gif;base64,%%%not-valid%%%"
+    plugin.on_post_tool_call(
+        tool_name="vision_analyze",
+        args={"image_url": malformed},
+        result={"ok": True},
+        session_id="report-fidelity-loss",
+        tool_call_id="fidelity-loss",
+        status="ok",
+    )
+
+    reporter = load_module(REPORT_PATH, "context_canvas_v2_soak_report_fidelity_loss")
+    report = reporter.collect(report_args(reporter, metrics_root, cache_root))
+
+    assert report["hard_gates"]["externalization_errors"] == 0
+    assert "externalization_errors" not in report["hard_gates"]["failures"]
+    assert report["quality"]["invalid_data_urls_removed"] == 1
+    assert "snapshot_fidelity_loss" in report["quality"]["holds"]
+
+
+def test_binary_store_failure_remains_a_reporter_hard_failure(tmp_path, monkeypatch):
+    plugin = load_module(PLUGIN_PATH, "context_canvas_autopilot_report_binary_store_failure")
+    cache_root, metrics_root = configure_plugin(plugin, tmp_path, monkeypatch)
+    _, snapshot_store_type, _, _ = plugin._components()
+
+    def fail_binary_store(self, _raw):
+        raise OSError("synthetic binary object-store failure")
+
+    monkeypatch.setattr(snapshot_store_type, "put_binary", fail_binary_store)
+    raw_url = "data:image/gif;base64,YWJj"
+    plugin.on_post_tool_call(
+        tool_name="vision_analyze",
+        args={"image_url": raw_url},
+        result={"ok": True},
+        session_id="report-binary-store-failure",
+        tool_call_id="binary-store-failure",
+        status="ok",
+    )
+
+    checked = SnapshotStore(cache_root).validate_manifest(
+        next((cache_root / "sessions").glob("*/snapshots/sr_*.json"))
+    )
+    envelope_text = str(checked["envelope"])
+    assert raw_url not in envelope_text
+    assert ";base64," not in envelope_text
+    assert checked["manifest"]["externalization_errors"] == 1
+
+    reporter = load_module(REPORT_PATH, "context_canvas_v2_soak_report_binary_store_failure")
+    report = reporter.collect(report_args(reporter, metrics_root, cache_root))
+
+    assert report["verdict"] == "FAIL"
+    assert report["hard_gates"]["externalization_errors"] == 1
+    assert "externalization_errors" in report["hard_gates"]["failures"]
+    assert report["hard_gates"]["raw_data_url_text_objects"] == 0
 
 
 def test_externalized_binary_bytes_cross_threshold_and_legacy_cohort_accounting(tmp_path, monkeypatch):

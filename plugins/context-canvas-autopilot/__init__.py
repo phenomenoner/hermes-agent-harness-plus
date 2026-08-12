@@ -1,14 +1,13 @@
-"""Context Canvas Autopilot v2: full snapshot cache + selective map.
+"""Retired Context Canvas Autopilot v2 broad-capture experiment.
 
 Runtime contract:
 
-- v2 is the active persistence path;
-- every eligible tool result is stored once as a full *sanitized*, compressed,
-  content-addressed point-in-time snapshot;
-- only failures, verifications, and state-changing actions are promoted into a
-  small semantic Canvas;
-- the legacy v1 decision policy consumes the same event as a shadow and emits
-  content-free comparison metrics; it never writes legacy refs or nodes;
+- production runtime configuration is forced to ``off``;
+- historical active modes remain available only to source replay and regression
+  tests through ``set_test_config``;
+- the retained implementation can still validate its former sanitized snapshot,
+  semantic projection, and reverse-shadow contracts without authorizing live
+  payload capture;
 - hooks are fail-open and never mutate model-visible tool results.
 
 Behavioral settings belong under
@@ -41,8 +40,15 @@ from typing import Any, NamedTuple
 
 logger = logging.getLogger(__name__)
 
-PLUGIN_REVISION = "0.2.4-installed-tool-root"
-_ALLOWED_MODES = {"off", "v2_active", "v2_active_legacy_shadow", "legacy_active_safe"}
+PLUGIN_REVISION = "0.2.5-retired-broad-capture"
+_RUNTIME_MODES = {"off"}
+_HISTORICAL_TEST_MODES = {
+    "off",
+    "v2_active",
+    "v2_active_legacy_shadow",
+    "legacy_active_safe",
+}
+_MAX_REDACTION_PASSES = 4
 _DATA_URL_RE = re.compile(
     r"data:(?P<mime>[A-Za-z0-9.+_-]+/[A-Za-z0-9.+_-]+);base64,(?P<data>[^\s\"'<>]*)",
     re.IGNORECASE,
@@ -229,9 +235,9 @@ def _load_entry_config() -> dict[str, Any]:
 def _config() -> PluginConfig:
     entry = _load_entry_config()
     home = _hermes_home()
-    mode = str(entry.get("mode", "v2_active_legacy_shadow")).strip()
-    if mode not in _ALLOWED_MODES:
-        mode = "off"
+    requested_mode = str(entry.get("mode", "off")).strip()
+    allowed_modes = _HISTORICAL_TEST_MODES if _test_config is not None else _RUNTIME_MODES
+    mode = requested_mode if requested_mode in allowed_modes else "off"
     cache_root = Path(entry.get("cache_root") or home / "context-canvas-cache-v2").expanduser()
     metrics_root = Path(entry.get("metrics_root") or home / "context-canvas-soak" / "v2-active-legacy-shadow").expanduser()
 
@@ -583,16 +589,51 @@ def _force_redact_text(text: str, *, tool_name: str, required: bool) -> tuple[st
         return text, False, "disabled-test-only"
 
 
-def _externalize_data_urls(text: str, snapshot_store: Any) -> tuple[str, list[dict[str, Any]], int]:
+def _redact_to_fixed_point(text: str, *, tool_name: str, required: bool) -> tuple[str, bool, str]:
+    """Apply the selected redactor until another pass cannot change persisted text."""
+    original = text
+    current = text
+    backend = ""
+    seen = {current}
+    for _ in range(_MAX_REDACTION_PASSES):
+        redacted, _, pass_backend = _force_redact_text(
+            current,
+            tool_name=tool_name,
+            required=required,
+        )
+        if backend and pass_backend != backend:
+            raise RuntimeError("redactor backend changed before reaching a fixed point")
+        backend = pass_backend
+        if redacted == current:
+            return redacted, redacted != original, backend
+        if redacted in seen:
+            raise RuntimeError("redactor entered a cycle before reaching a fixed point")
+        seen.add(redacted)
+        current = redacted
+    raise RuntimeError("redactor did not reach a fixed point within the bounded pass limit")
+
+
+def _externalize_data_urls(
+    text: str,
+    snapshot_store: Any,
+) -> tuple[str, list[dict[str, Any]], int, int]:
     embedded: list[dict[str, Any]] = []
-    errors = 0
+    storage_errors = 0
+    invalid_removed = 0
 
     def replace(match: re.Match[str]) -> str:
-        nonlocal errors
+        nonlocal invalid_removed, storage_errors
         mime = _bounded_token(match.group("mime"), "application-octet-stream", limit=80).replace("-", "/", 1)
         encoded = match.group("data")
         try:
             raw = base64.b64decode(encoded, altchars=b"-_", validate=True)
+        except Exception:
+            invalid_removed += 1
+            digest = hashlib.sha256(encoded.encode("ascii", errors="ignore")).hexdigest()
+            # Invalid caller input was safely removed. It is not a persistence
+            # failure and therefore must not trip the storage hard gate.
+            return f"[invalid-data-url-removed sha256={digest} encoded_chars={len(encoded)}]"
+        try:
             stored = snapshot_store.put_binary(raw)
             item = {
                 "sha256": stored["sha256"],
@@ -605,12 +646,13 @@ def _externalize_data_urls(text: str, snapshot_store: Any) -> tuple[str, list[di
             embedded.append(item)
             return f"[context-canvas-binary sha256={stored['sha256']} mime={mime} bytes={len(raw)}]"
         except Exception:
-            errors += 1
+            storage_errors += 1
             digest = hashlib.sha256(encoded.encode("ascii", errors="ignore")).hexdigest()
-            # Never retain undecodable base64 text; preserve only a hash/size receipt.
-            return f"[invalid-data-url-removed sha256={digest} encoded_chars={len(encoded)}]"
+            # Never retain binary text after a storage failure; preserve only a
+            # content-free receipt while the metric keeps the hard failure.
+            return f"[data-url-storage-failed-removed sha256={digest} encoded_chars={len(encoded)}]"
 
-    return _DATA_URL_RE.sub(replace, text), embedded, errors
+    return _DATA_URL_RE.sub(replace, text), embedded, storage_errors, invalid_removed
 
 
 def _status_from_result(
@@ -897,14 +939,24 @@ def _process_tool_event(
             _, SnapshotStore, _, _ = _components()
             snapshot_store = SnapshotStore(cfg.cache_root)
             args_format, args_text = _serialize(args or {})
-            args_no_binary, args_embedded, args_externalization_errors = _externalize_data_urls(args_text, snapshot_store)
-            result_no_binary, result_embedded, result_externalization_errors = _externalize_data_urls(result_text, snapshot_store)
-            args_redacted, args_changed, args_redactor = _force_redact_text(
+            (
+                args_no_binary,
+                args_embedded,
+                args_externalization_errors,
+                args_invalid_data_urls,
+            ) = _externalize_data_urls(args_text, snapshot_store)
+            (
+                result_no_binary,
+                result_embedded,
+                result_externalization_errors,
+                result_invalid_data_urls,
+            ) = _externalize_data_urls(result_text, snapshot_store)
+            args_redacted, args_changed, args_redactor = _redact_to_fixed_point(
                 args_no_binary,
                 tool_name=tool_name,
                 required=cfg.require_hermes_redactor,
             )
-            result_redacted, result_changed, result_redactor = _force_redact_text(
+            result_redacted, result_changed, result_redactor = _redact_to_fixed_point(
                 result_no_binary,
                 tool_name=tool_name,
                 required=cfg.require_hermes_redactor,
@@ -954,6 +1006,7 @@ def _process_tool_event(
                 "redactor_backend": result_redactor,
                 "embedded_objects": embedded,
                 "externalization_errors": args_externalization_errors + result_externalization_errors,
+                "invalid_data_urls_removed": args_invalid_data_urls + result_invalid_data_urls,
                 "retention_class": cfg.retention_class,
                 "retention_days": cfg.retention_days,
                 "pinned": semantic_class != "none",

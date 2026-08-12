@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Deterministic source-only replay for Context Canvas Autopilot v2.
+"""Deterministic source-only safety replay for retired Autopilot v2 code.
 
 The replay never writes the live Canvas/cache/metrics roots. Historical refs are
 sampled locally, passed through the real v2 hook, and summarized without
-printing their content.
+printing their content. A successful replay carries no product or rollout
+authority.
 """
 
 from __future__ import annotations
@@ -32,6 +33,10 @@ from context_canvas.snapshot import PrivateJsonlLedger, SnapshotStore  # type: i
 
 TOOL_RE = re.compile(r'"tool_name"\s*:\s*"([^"]+)"')
 SECRET_CANARY = "sk-proj-abcdefghijklmnopqrstuvwxyz1234567890"
+_PERSISTED_DATA_URL_RE = re.compile(
+    r"data:[A-Za-z0-9.+_-]+/[A-Za-z0-9.+_-]+;base64,[^\s\"'<>]*",
+    re.IGNORECASE,
+)
 
 
 def load_plugin() -> Any:
@@ -95,7 +100,7 @@ def canary_violations(cache_root: Path) -> dict[str, int]:
         combined = str(envelope.get("args", "")) + "\n" + str(envelope.get("result", ""))
         if SECRET_CANARY in combined:
             secret_hits += 1
-        if "data:" in combined and ";base64," in combined:
+        if _PERSISTED_DATA_URL_RE.search(combined) is not None:
             data_url_hits += 1
     return {"checked": checked, "secret_hits": secret_hits, "data_url_hits": data_url_hits}
 
@@ -242,6 +247,8 @@ def main() -> int:
     self_rows = [row for row in metrics if row.get("self_capture_excluded")]
     result = {
         "ok": not failures and canaries["secret_hits"] == 0 and canaries["data_url_hits"] == 0,
+        "product_authority": "none",
+        "purpose": "historical_safety_evidence_only",
         "output_root": str(output_root),
         "historical_events": len(events) - len(synthetic),
         "synthetic_events": len(synthetic),

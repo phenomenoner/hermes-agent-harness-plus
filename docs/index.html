@@ -368,8 +368,6 @@
       transition: transform 180ms ease, box-shadow 180ms ease;
     }
 
-    .calibrator-card { grid-column: 2; }
-
     .card:hover { transform: translateY(-4px) rotate(-0.4deg); box-shadow: 0 26px 60px rgba(84, 74, 120, 0.16); }
 
     .card::after {
@@ -432,6 +430,7 @@
     }
 
     .step {
+      min-width: 0;
       border: 1px solid var(--line);
       border-radius: 28px;
       padding: 22px;
@@ -588,7 +587,6 @@
     @media (max-width: 900px) {
       .statbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .pain, .grid, .steps { grid-template-columns: 1fr; }
-      .calibrator-card { grid-column: auto; }
     }
 
     @media (max-width: 860px) {
@@ -600,6 +598,7 @@
 
     @media (max-width: 520px) {
       main { width: min(100% - 22px, 1120px); padding-top: 24px; }
+      .showcase .floater { display: none; }
       h1 { font-size: clamp(38px, 14vw, 56px); }
       .navlinks a { padding: 9px 12px; }
       .showcase, .card { border-radius: 24px; }
@@ -645,7 +644,7 @@
             <span class="title">task-canvas · demo session</span>
           </div>
           <div class="canvas-list">
-            <div class="note"><div class="icon">🗺️</div><div><strong>Task Canvas</strong><span>Compact progress notes stay in JSON; full sanitized snapshots park in a private cache.</span></div></div>
+            <div class="note"><div class="icon">🗺️</div><div><strong>Task Canvas</strong><span>Compact progress notes stay in JSON; evidence refs keep a path back to the facts.</span></div></div>
             <div class="note"><div class="icon">🔎</div><div><strong>Local recall</strong><span>Search your skills and recent sessions from your own Qdrant. Nothing leaves home.</span></div></div>
             <div class="note"><div class="icon">🩺</div><div><strong>Quiet watchdog</strong><span>Silent when recall is healthy, loud the moment it breaks.</span></div></div>
           </div>
@@ -654,7 +653,7 @@
     </section>
 
     <div class="statbar" role="list" aria-label="Project facts">
-      <div class="stat" role="listitem"><b>7+</b><span>pluggable pieces 🧩</span></div>
+      <div class="stat" role="listitem"><b>6+</b><span>pluggable pieces 🧩</span></div>
       <div class="stat" role="listitem"><b>100%</b><span>local-first 🏠</span></div>
       <div class="stat" role="listitem"><b>0</b><span>changes to Hermes core 🪶</span></div>
       <div class="stat" role="listitem"><b>MIT</b><span>do-what-you-love license 📜</span></div>
@@ -673,23 +672,22 @@
 
     <section id="features" aria-label="Features">
       <span class="kicker">🎁 What's in the box</span>
-      <h2 class="section-title">Seven little helpers, one happy harness.</h2>
+      <h2 class="section-title">Six little helpers, one happy harness.</h2>
       <p class="section-lead">Every piece is optional and independent. Take one, take all — Hermes Agent itself is never modified.</p>
       <div class="grid">
         <div class="card" style="--bubble:#ff7ab6"><div class="emoji">🗺️</div><h3>Context Canvas</h3><p>A tiny library that keeps short JSON nodes plus evidence refs — so every finished note has a path back to the facts.</p><a class="story-link" href="./context-canvas-story.html">Read the origin story →</a></div>
         <div class="card" style="--bubble:#8e7dff"><div class="emoji">🛰️</div><h3>Canvas MCP sidecar</h3><p>Native MCP tools for Hermes — start a map, recover recent canvas IDs, or attach evidence and its node in one atomic call.</p></div>
-        <div class="card" style="--bubble:#ffb36b"><div class="emoji">🤖</div><h3>Autopilot plugin</h3><p>Caches full sanitized tool results, then adds only failures, verifications, and state changes to the map. Fail-open, never edits conversation history.</p></div>
         <div class="card" style="--bubble:#68d8b2"><div class="emoji">🔎</div><h3>Qdrant recall kit</h3><p>Index selected skills and recent sessions into your own local Qdrant — with dry-run previews and secret-pattern redaction.</p></div>
         <div class="card" style="--bubble:#6bbcff"><div class="emoji">🩺</div><h3>Recall watchdog</h3><p>Scheduled health checks that stay quiet on green and get specific on failure — plus bounded Docker restart helpers.</p></div>
         <div class="card" style="--bubble:#ffd166"><div class="emoji">📚</div><h3>Skills & checklists</h3><p>Drop-in Hermes skills and ops checklists that teach the habits: keep the map, find it again, share cleanly.</p></div>
-        <div class="card calibrator-card" style="--bubble:#8e7dff"><div class="emoji">🧭</div><h3>Delegation calibrator</h3><p>Optional complexity × Bayesian evidence for direct versus <code>luna_max</code> — with Baton and the main agent still in charge of judgment.</p><a class="story-link" href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/ops-rules/complexity-bayesian-delegation.md">Read the routing guide →</a></div>
+        <div class="card" style="--bubble:#8e7dff"><div class="emoji">🧭</div><h3>Delegation calibrator</h3><p>Optional complexity × Bayesian evidence for direct versus <code>luna_max</code> — with Baton and the main agent still in charge of judgment.</p><a class="story-link" href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/ops-rules/complexity-bayesian-delegation.md">Read the routing guide →</a></div>
       </div>
     </section>
 
     <section id="quickstart" aria-label="Quick start">
       <span class="kicker">⚡ Quick start</span>
       <h2 class="section-title">From zero to first canvas in about a minute.</h2>
-      <p class="section-lead">Three copy-paste steps. The <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md" style="font-weight:800;color:#5d55ac;">full install guide</a> covers MCP wiring, the autopilot plugin, and Qdrant helpers.</p>
+      <p class="section-lead">Three copy-paste steps. The <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md" style="font-weight:800;color:#5d55ac;">full install guide</a> covers MCP wiring, retired-plugin cleanup, and Qdrant helpers.</p>
       <div class="steps">
         <div class="step" style="--num-a:#f0529c; --num-b:#ff9f45">
           <span class="num" aria-hidden="true"></span>
@@ -718,7 +716,7 @@ python -m pytest -q"><button class="copy-btn" type="button">Copy</button><span c
 <span class="g">PYTHONPATH=</span>packages/context-canvas \
 <span class="g">python -m</span> context_canvas.cli start \
   --session-id <span class="p">demo</span> \
-  --goal <span class="p">"Keep evidence for a long task"</span></div>
+  --goal <span class="p">"Keep evidence for a long Hermes task"</span></div>
         </div>
       </div>
     </section>
@@ -741,19 +739,19 @@ python -m pytest -q"><button class="copy-btn" type="button">Copy</button><span c
       <div class="faq">
         <details>
           <summary>Does it modify Hermes Agent?</summary>
-          <p>Nope! Everything is an optional outer layer — adapters, plugins, sidecars, skills, and checklists. Remove any piece and Hermes keeps running exactly as before.</p>
+          <p>Nope! Everything is an optional outer layer — packages, sidecars, skills, helpers, and checklists. Remove any piece and Hermes keeps running exactly as before.</p>
         </details>
         <details>
           <summary>Where does my data go?</summary>
           <p>Nowhere. Canvases live under <code>~/.hermes/context-canvas</code>, and Qdrant recall binds to <code>127.0.0.1</code> by default. Session indexing skips system prompts and tool outputs, redacts common secret patterns, and always supports <code>--dry-run</code> previews.</p>
         </details>
         <details>
-          <summary>Do I need all seven pieces?</summary>
-          <p>Not at all — they're independent. Lots of value starts with just the Task Canvas CLI. Add the MCP sidecar, autopilot plugin, Qdrant recall, or the optional delegation calibrator whenever your workflow asks for them.</p>
+          <summary>Do I need all six pieces?</summary>
+          <p>Not at all — they're independent. Lots of value starts with just the Task Canvas CLI. Add the MCP sidecar, Qdrant recall, or the optional delegation calibrator whenever your workflow asks for them.</p>
         </details>
         <details>
           <summary>What do I need to run it?</summary>
-          <p>Python 3.10+, plus a working Hermes Agent install for the MCP and plugin pieces. The Qdrant helpers want a local Qdrant (Docker works great) and <code>fastembed</code>. Details live in the <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md" style="font-weight:800;color:#5d55ac;">install guide</a>.</p>
+          <p>Python 3.10+, plus a working Hermes Agent install for the MCP sidecar. The Qdrant helpers want a local Qdrant (Docker works great) and <code>fastembed</code>. Details live in the <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/blob/main/docs/install.md" style="font-weight:800;color:#5d55ac;">install guide</a>.</p>
         </details>
       </div>
     </section>

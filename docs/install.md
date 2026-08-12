@@ -48,76 +48,42 @@ Restart Hermes Agent after changing MCP configuration. The tools include
 id; use `canvas_record` when evidence and its concise node belong in one atomic
 update.
 
-## 5. Enable the optional autopilot plugin
+## 5. Keep the retired broad-capture plugin disabled
 
-Autopilot v2 is a lightweight functional plugin: it keeps full sanitized
-point-in-time tool results in a private, compressed, content-addressed cache.
-The semantic Canvas stays small: only failures, successful verification
-commands, and state-changing actions are promoted. The plugin never edits
-conversation history, never changes a tool result, and fails open if persistence
-is unavailable.
+The Context Canvas Autopilot broad-capture experiment is archived. Do not copy
+or enable it for a new installation. Use the explicit Canvas MCP tools above;
+they preserve an intentional evidence map without duplicating every tool result.
 
-```bash
-mkdir -p ~/.hermes/plugins
-cp -R plugins/context-canvas-autopilot ~/.hermes/plugins/
-```
-
-Then enable and configure the plugin in Hermes `config.yaml`:
+If an older installation still lists `context-canvas-autopilot`, remove it from
+`plugins.enabled`. A stale entry may remain temporarily while you clean up local
+files, but keep it explicitly off:
 
 ```yaml
 plugins:
-  enabled:
-    - context-canvas-autopilot
   entries:
     context-canvas-autopilot:
-      mode: v2_active_legacy_shadow
-      revision: 0.2.4-installed-tool-root
-      tool_root: /absolute/path/to/hermes-agent-harness-plus/packages/context-canvas
-      cache_root: ~/.hermes/context-canvas-cache-v2
-      metrics_root: ~/.hermes/context-canvas-soak/v2-active-legacy-shadow
-      retention_class: ephemeral-cache
-      retention_days: 30
-      max_semantic_refs: 12
-      legacy_tool_threshold: 5
-      legacy_large_result_chars: 6000
-      legacy_max_ref_chars: 50000
-      metrics_enabled: true
-      require_hermes_redactor: true
+      mode: off
+      revision: 0.2.5-retired-broad-capture
 ```
 
-`v2_active_legacy_shadow` makes v2 the real persistence path while evaluating
-the old v1 policy on the same event. The shadow writes only content-free
-comparison metrics — never duplicate payloads, refs, or nodes. See the
-[reverse-shadow design](technical/context-canvas-v2-reverse-shadow.md) for the
-registered soak gates and rollback modes. Its lightweight live-soak defaults are
-48 hours, 100 eligible events across 5 sessions, at least 70% semantic-node
-reduction, and at most 80% active storage/raw ratio; hard functional/integrity
-gates remain zero. Source replay is candidate evidence only, not live retirement
-evidence, so keep the legacy shadow enabled until the live soak passes.
+The retained production code forces every requested mode to `off`, including
+old active-mode values. Historical source replay and regression tests remain in
+the repository for safety inspection only; their results never authorize live
+capture. See the [Autopilot archive](technical/context-canvas-v2-reverse-shadow.md)
+for the decision and retained checks.
 
-The old `HERMES_CONTEXT_CANVAS_*` behavior variables are compatibility
-fallbacks only. For a copied plugin, set `tool_root` to the package directory as
-shown above. A process-level `HERMES_CONTEXT_CANVAS_TOOL` may still override it;
-an environment value nested under the MCP server config applies only to that
-MCP subprocess and is not inherited by the gateway plugin.
-
-`tool_root` is a **code-execution trust setting**, not a data directory. Use an
-absolute, owner-controlled directory containing regular files
+For maintainers running that historical replay, `tool_root` remains a
+**code-execution trust setting**, not a data directory. Use an absolute,
+owner-controlled directory containing regular files
 `context_canvas/__init__.py`, `context_canvas/core.py`, and
-`context_canvas/snapshot.py`. The gateway gives the selected root import
-precedence, revalidates it before use, and rejects imported `context_canvas`
-modules from another origin.
+`context_canvas/snapshot.py`. Replay gives the selected root import precedence,
+revalidates it before use, and rejects imported `context_canvas` modules from
+another origin.
 
-Validation currently requires POSIX effective-UID semantics. It rejects
-symbolic links for the selected root, package directory, or required files;
-group- or world-writable code paths; and replacement-capable ancestors up to a
-protected system-owned boundary. A root-owned sticky directory such as `/tmp`
-is accepted within an otherwise protected ancestor chain. On non-POSIX hosts,
-tool-root activation will fail closed until an equivalent ownership and ACL rule
-is implemented. Never point it at a download, shared writable directory, or
-checkout controlled by another account.
-
-Restart Hermes Agent so plugin hooks are loaded.
+Validation requires POSIX effective-UID semantics. It rejects symbolic links,
+group- or world-writable code paths, and replacement-capable ancestors. On a
+platform without an equivalent ownership rule, historical activation must fail
+closed. Never point replay at a download or shared writable directory.
 
 ## 6. Add Qdrant recall helpers
 

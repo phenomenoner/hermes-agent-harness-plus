@@ -21,17 +21,17 @@
   validation errors repeat the allowed values, and `canvas_recent` can recover a
   session id by recency or a title/goal substring after context loss.
 
-## Context Canvas Autopilot plugin
+## Context Canvas Autopilot archive
 
 - Path: `plugins/context-canvas-autopilot/`
-- Purpose: cache full sanitized point-in-time tool results outside Canvas
-  search, then promote only failures, verifications, and state changes into a
-  compact semantic map.
-- Safety posture: fail-open, force-redacted before persistence, data URLs moved
-  to content-addressed binary objects, Canvas self-calls excluded, and legacy
-  policy comparisons written as content-free private metrics.
-- Soak helpers: `scripts/context_canvas_v2_replay.py` and
-  `scripts/context_canvas_v2_soak_report.py`.
+- Status: retired broad post-tool capture experiment; production runtime is
+  forced to `off` and new installations should not enable it.
+- Retained for: source inspection, historical evidence interpretation, and
+  regression checks for redaction, data-URL handling, integrity, and fail-open
+  hook behavior.
+- Historical helpers: `scripts/context_canvas_v2_replay.py` and
+  `scripts/context_canvas_v2_soak_report.py`. Their output carries no product or
+  rollout authority.
 
 ## Qdrant scripts
 

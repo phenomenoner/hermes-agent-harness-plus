@@ -585,6 +585,34 @@ def test_plugin_manifest_version_matches_runtime_revision():
     assert manifest["version"] == plugin.PLUGIN_REVISION.split("-", 1)[0]
 
 
+@pytest.mark.parametrize("requested_mode", [None, "v2_active", "v2_active_legacy_shadow", "legacy_active_safe"])
+def test_production_config_forces_retired_broad_capture_off(tmp_path, monkeypatch, requested_mode):
+    plugin = load_plugin()
+    plugin.reset_state_for_tests()
+    cache_root = tmp_path / "cache"
+    metrics_root = tmp_path / "metrics"
+    entry = {
+        "cache_root": str(cache_root),
+        "metrics_root": str(metrics_root),
+        "async_writes": False,
+    }
+    if requested_mode is not None:
+        entry["mode"] = requested_mode
+    monkeypatch.setattr(plugin, "_load_entry_config", lambda: entry)
+
+    assert plugin._config().mode == "off"
+    plugin.on_post_tool_call(
+        tool_name="read_file",
+        args={"path": "fixture.txt"},
+        result="must not be captured",
+        session_id="retired-runtime-fence",
+        tool_call_id="retired-runtime-fence-call",
+        status="ok",
+    )
+    assert not cache_root.exists()
+    assert not metrics_root.exists()
+
+
 def configure(plugin, tmp_path, monkeypatch, **overrides):
     canvas_root = tmp_path / "canvas"
     cache_root = tmp_path / "cache"
@@ -780,7 +808,7 @@ def test_embedded_binary_metrics_count_raw_bytes_and_first_write_storage_only(tm
     assert all(entry["manifest"]["embedded_objects"][0]["raw_bytes"] == len(raw) for entry in checked)
 
 
-def test_malformed_data_url_is_removed_and_externalization_error_is_recorded(tmp_path, monkeypatch):
+def test_malformed_data_url_is_safely_removed_without_storage_failure(tmp_path, monkeypatch):
     plugin = load_plugin()
     _, cache_root, metrics_root = configure(plugin, tmp_path, monkeypatch)
     malformed = "data:image/gif;base64,%%%not-valid%%%"
@@ -798,8 +826,30 @@ def test_malformed_data_url_is_removed_and_externalization_error_is_recorded(tmp
     assert malformed not in envelope_text
     assert ";base64," not in envelope_text
     assert checked["manifest"]["embedded_objects"] == []
-    assert checked["manifest"]["externalization_errors"] == 1
-    assert PrivateJsonlLedger(metrics_root).read()[0]["active_externalization_errors"] == 1
+    assert checked["manifest"]["invalid_data_urls_removed"] == 1
+    assert checked["manifest"]["externalization_errors"] == 0
+    assert PrivateJsonlLedger(metrics_root).read()[0]["active_externalization_errors"] == 0
+
+
+def test_binary_store_failure_removes_raw_data_url_and_remains_a_hard_error():
+    plugin = load_plugin()
+    raw_url = "data:image/gif;base64,YWJj"
+
+    class FailingStore:
+        def put_binary(self, _raw):
+            raise OSError("synthetic object-store failure")
+
+    cleaned, embedded, storage_errors, invalid_removed = plugin._externalize_data_urls(
+        raw_url,
+        FailingStore(),
+    )
+
+    assert raw_url not in cleaned
+    assert ";base64," not in cleaned
+    assert "data-url-storage-failed-removed" in cleaned
+    assert embedded == []
+    assert storage_errors == 1
+    assert invalid_removed == 0
 
 
 @pytest.mark.parametrize(
@@ -1087,6 +1137,72 @@ def test_required_redactor_failure_is_fail_open_and_metricized(tmp_path, monkeyp
         args={"path": "secret.env"},
         result="secret fixture",
         session_id="redactor-fail",
+        status="ok",
+    )
+
+    assert manifests(cache_root) == []
+    row = PrivateJsonlLedger(metrics_root).read()[0]
+    assert row["active_capture_attempted"] is True
+    assert row["active_capture_ok"] is False
+    assert row["active_error_type"] == "RuntimeError"
+
+
+def test_redactor_reaches_fixed_point_before_snapshot_persistence(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    _, cache_root, metrics_root = configure(
+        plugin,
+        tmp_path,
+        monkeypatch,
+        require_hermes_redactor=True,
+    )
+    transitions = {
+        "first-stage-canary": "second-stage-mask",
+        "second-stage-mask": "final-fixed-mask",
+        "final-fixed-mask": "final-fixed-mask",
+    }
+
+    def staged_redactor(text, *, tool_name, required):
+        redacted = transitions.get(text, text)
+        return redacted, redacted != text, "hermes_force"
+
+    monkeypatch.setattr(plugin, "_force_redact_text", staged_redactor)
+    plugin.on_post_tool_call(
+        tool_name="session_search",
+        args={},
+        result="first-stage-canary",
+        session_id="redactor-fixed-point",
+        status="ok",
+    )
+
+    checked = SnapshotStore(cache_root).validate_manifest(manifests(cache_root)[0])
+    combined = json.dumps(checked["envelope"])
+    assert "first-stage-canary" not in combined
+    assert "second-stage-mask" not in combined
+    assert "final-fixed-mask" in combined
+    row = PrivateJsonlLedger(metrics_root).read()[0]
+    assert row["active_capture_ok"] is True
+    assert row["active_redaction_applied"] is True
+
+
+def test_nonconvergent_redactor_refuses_snapshot_but_keeps_hook_fail_open(tmp_path, monkeypatch):
+    plugin = load_plugin()
+    _, cache_root, metrics_root = configure(
+        plugin,
+        tmp_path,
+        monkeypatch,
+        require_hermes_redactor=True,
+    )
+
+    def oscillating_redactor(text, *, tool_name, required):
+        redacted = "oscillation-b" if text == "oscillation-a" else "oscillation-a"
+        return redacted, redacted != text, "hermes_force"
+
+    monkeypatch.setattr(plugin, "_force_redact_text", oscillating_redactor)
+    plugin.on_post_tool_call(
+        tool_name="session_search",
+        args={},
+        result="oscillation-a",
+        session_id="redactor-nonconvergent",
         status="ok",
     )
 

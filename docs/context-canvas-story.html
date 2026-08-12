@@ -1181,7 +1181,7 @@
           <div class="layer-stack" aria-label="The three layers of Context Canvas">
             <div class="layer"><span class="layer-index" style="--layer-a:#ff7ab6;--layer-b:#ffb36b">1</span><div><strong>The skill teaches the habit.</strong><span>When to start a canvas, what deserves a receipt, and how to close the task without stuffing permanent memory.</span></div></div>
             <div class="layer"><span class="layer-index" style="--layer-a:#68d8b2;--layer-b:#6bbcff">2</span><div><strong>The MCP sidecar keeps the state.</strong><span>A small local home for nodes, refs, search, and closeout. Useful before any deeper automation exists.</span></div></div>
-            <div class="layer"><span class="layer-index" style="--layer-a:#8e7dff;--layer-b:#ff7ab6">3</span><div><strong>The plugin watches quietly.</strong><span>When work gets long or output gets large, Autopilot can file the evidence without rewriting the conversation.</span></div></div>
+            <div class="layer"><span class="layer-index" style="--layer-a:#8e7dff;--layer-b:#ff7ab6">3</span><div><strong>The plugin was the experiment.</strong><span>Autopilot tested whether broad automatic capture added enough recovery value to justify a second persistence path.</span></div></div>
           </div>
           <p>I liked the order. Start with judgment. Give the judgment a dependable tool. Automate only after the tool has earned trust.</p>
         </div>
@@ -1217,6 +1217,7 @@
           </div>
           <p>The first thing Autopilot taught me was that automation has opinions even when you did not give it any. It also captured a couple of large skill documents. Technically correct. Slightly noisy. We started tuning the exclusions.</p>
           <p>That little annoyance mattered. Context Canvas was not supposed to collect everything. A map becomes useless when every pebble gets a label.</p>
+          <p>Months later, that lesson became the product decision: keep the intentional map, retire the broad capture plane.</p>
         </div>
       </section>
 
@@ -1241,6 +1242,18 @@
           <div class="aside-note">Public record: <a href="https://github.com/phenomenoner/hermes-agent-harness-plus/commit/4939061">4939061 · “fix: harden Context Canvas concurrent writes” · July 31, 2026</a></div>
           <div class="pullquote">Launch day made it visible. Repair day made it real.</div>
           <p>I trust the tool more because it broke in an understandable way and left enough evidence for us to repair it. That is the whole philosophy, really.</p>
+        </div>
+      </section>
+
+      <section class="chapter" aria-labelledby="chapter-eight" data-reveal>
+        <div class="chapter-meta"><span class="chapter-number">08</span><span>August 12, 2026<br>The honest ending</span></div>
+        <div class="chapter-copy">
+          <h2 id="chapter-eight">Then we asked whether automation had earned its keep.</h2>
+          <p>The safety repair worked. Fixed-point redaction, cleaner data-URL receipts, stricter integrity checks, and better replay tests all made the dormant path easier to reason about.</p>
+          <p>But a green safety test answers only one question: can this mechanism behave as designed? It does not answer the product question: does copying every tool result make recovery meaningfully better than Hermes session history plus an explicit Canvas?</p>
+          <p>We could not prove that incremental value. The automatic canvases had no demonstrated downstream reuse, no completed recovery win, and a much larger persistence surface than the intentional map. So we retired broad Autopilot capture and forced its production runtime off.</p>
+          <div class="pullquote">The useful product was the map with receipts, not a second copy of every road.</div>
+          <p>The package, MCP sidecar, and skill remain. The archived plugin remains readable for historical safety replay, but a green replay cannot turn it back on. If exact one-shot capture ever earns a real use case, it will begin as a new explicit, bounded, visible, expiring design.</p>
         </div>
       </section>
     </article>

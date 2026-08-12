@@ -45,7 +45,7 @@ Use these consistently; one emoji per heading, at the start:
 | Concept | Emoji | Concept | Emoji |
 |---|---|---|---|
 | Task Canvas / map | 🗺️ | Recall / search | 🔎 |
-| MCP sidecar | 🛰️ | Autopilot plugin | 🤖 |
+| MCP sidecar | 🛰️ | Autopilot archive | 🗃️ |
 | Watchdog / health | 🩺 | Skills / guides | 📚 |
 | Checklists / ops | ✅ | Install / package | 📦 |
 | Components / catalog | 🧩 | Website | 🌈 |
@@ -113,10 +113,10 @@ Signature gradients:
 1. `nav` — brand + anchors (`#features`, `#quickstart`, `#faq`) + ⭐ GitHub link.
 2. `.hero` — pill badge, `h1` with `.rainbow` span, lead, 3 CTAs, showcase panel
    (mac-dots window with three `.note` rows) with floating emoji.
-3. `.statbar` — exactly 4 honest facts. If the component count changes, update
-   the `6+` tile.
+3. `.statbar` — exactly 4 honest facts. If the active component count changes,
+   update the `6+` tile; archived source does not count as an active component.
 4. Problem section — kicker `🪦`, three `.ouch` pain cards.
-5. `#features` — six `.card`s, one per component; emoji tile + `h3` + ≤2
+5. `#features` — six `.card`s, one per active component; emoji tile + `h3` + ≤2
    sentences. New component ⇒ new card (and consider the grid still balancing
    at 3 columns).
 6. `#quickstart` — three `.step`s with dark `.code` blocks. Each block carries

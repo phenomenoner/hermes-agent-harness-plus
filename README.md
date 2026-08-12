@@ -42,7 +42,7 @@ Everything is **opt-in, local-first, and fail-open**. Take one piece or take the
 ```text
 hermes-agent-harness-plus/
 ├── 📦 packages/context-canvas/          Task Canvas library + CLI + MCP wrappers
-├── 🤖 plugins/context-canvas-autopilot/ Full snapshot cache + selective map
+├── 🗃️ plugins/context-canvas-autopilot/ Archived broad-capture experiment
 ├── 🔧 scripts/                          Qdrant & Canvas helpers: MCP, indexing, watchdogs
 ├── 📚 skills/                           Teach Hermes when & how to use the harness
 ├── ✅ ops-rules/                        Release / handoff / scheduled-job checklists
@@ -53,11 +53,14 @@ hermes-agent-harness-plus/
 |---|---|
 | 🗺️ **Context Canvas** | Short JSON nodes + evidence refs — the agent keeps the *shape* of the work and a path back to the facts |
 | 🛰️ **Canvas MCP sidecar** | Native MCP tools: start/read/search/closeout, recover recent canvas IDs with `canvas_recent`, or atomically attach evidence + a node with `canvas_record` |
-| 🤖 **Autopilot plugin** | Lightweight v2 snapshot cache + selective semantic map, with reverse-shadow metrics for comparing the legacy policy before live retirement |
 | 🔎 **Qdrant recall kit** | Index selected skills & recent sessions locally; dry-run previews and secret-pattern redaction by default |
 | 🩺 **Recall watchdog** | Quiet when healthy, loud when broken — validates collections after refreshes, container starts, and restarts |
 | 📚 **Public skills** | `context-canvas-memory` & `qdrant-recall-sidecar` — drop-in guidance for any Hermes Agent user |
 | 🧭 **Delegation calibrator** | Optional complexity × Bayesian evidence for direct vs `luna_max`; [Baton](https://github.com/phenomenoner/baton-fanout-skill) remains the qualitative dispatch brake and validation authority |
+
+The former Autopilot broad-capture plugin remains as a source archive for
+historical safety replay. Its production runtime is forced off; it is not an
+installation option.
 
 ---
 
@@ -95,9 +98,9 @@ mcp_servers:
 ## 🧭 Design principles
 
 - 🏠 **Local-first.** Your notes, your sessions, your Qdrant on `127.0.0.1`. Nothing leaves home.
-- 🪶 **Featherweight.** Optional pieces around Hermes Agent — zero changes to Hermes itself. Context Canvas v2 stays focused on snapshot/cache, selective semantic projection, and reverse-shadow quality checks.
+- 🪶 **Featherweight.** Optional pieces around Hermes Agent — zero changes to Hermes itself. Start with an explicit Canvas and add only the helpers you need.
 - 🛟 **Fail-open.** If a helper can't write, your session continues like nothing happened.
-- 🔍 **Separate cache from index.** Full sanitized snapshots stay recoverable in a private content-addressed cache; only selected evidence enters the semantic map.
+- 🔍 **Separate map from evidence.** Concise Canvas nodes stay easy to scan while referenced files retain the verifiable details.
 - 🧾 **Evidence or it didn't happen.** Every finished note points to a ref you can verify: `node summary → evidence ref → original content`.
 
 ---
@@ -108,10 +111,10 @@ mcp_servers:
 |---|---|
 | 🌈 [Website](https://phenomenoner.github.io/hermes-agent-harness-plus/) | The pretty tour |
 | ✦ [Context Canvas origin story](https://phenomenoner.github.io/hermes-agent-harness-plus/context-canvas-story.html) | A first-person product diary: the late-night idea, the first live capture, and the repair that made it real |
-| 📦 [Install & enable](docs/install.md) | Step-by-step setup: CLI, MCP, plugin, Qdrant, skills |
+| 📦 [Install & enable](docs/install.md) | Step-by-step setup: CLI, MCP, retired-plugin cleanup, Qdrant, skills |
 | 🧩 [Component catalog](docs/catalog.md) | Every piece, its purpose, and its safety posture |
 | 🗺️ [Context Canvas internals](docs/technical/context-canvas.md) | Data model & technical notes |
-| 🧾 [Context Canvas v2 reverse shadow](docs/technical/context-canvas-v2-reverse-shadow.md) | Lightweight snapshot/cache, reverse-shadow soak defaults & live-shadow retirement gates |
+| 🧾 [Autopilot v2 archive](docs/technical/context-canvas-v2-reverse-shadow.md) | Historical broad-capture design, retirement decision, and retained safety replay |
 | 🔎 [Qdrant recall internals](docs/technical/qdrant-recall.md) | Indexing, collections & health checks |
 | 🧭 [Delegation calibrator](ops-rules/complexity-bayesian-delegation.md) | Optional complexity × Bayesian routing evidence; Baton remains the dispatch brake and the main agent owns final judgment |
 | 🚀 [Release manifest](docs/release-manifest.md) | What ships in each bundle |

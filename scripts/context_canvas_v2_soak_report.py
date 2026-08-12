@@ -104,6 +104,10 @@ INT_FIELDS = {
 }
 FLOAT_FIELDS = {"hook_ms", "queue_wait_ms", "persist_ms"}
 STRING_FIELDS = METRIC_FIELDS - BOOL_FIELDS - INT_FIELDS - FLOAT_FIELDS
+_PERSISTED_DATA_URL_RE = re.compile(
+    r"data:[A-Za-z0-9.+_-]+/[A-Za-z0-9.+_-]+;base64,[^\s\"'<>]*",
+    re.IGNORECASE,
+)
 
 
 def parse_ts(value: str) -> datetime:
@@ -161,6 +165,11 @@ def force_redactor() -> Any | None:
         return redact_sensitive_text
     except Exception:
         return None
+
+
+def contains_persisted_data_url(text: str) -> bool:
+    """Return true only for one contiguous base64 data URL in persisted text."""
+    return _PERSISTED_DATA_URL_RE.search(str(text)) is not None
 
 
 def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -281,18 +290,24 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
     integrity_errors = 0
     raw_data_url_text_objects = 0
     persisted_redactor_hits = 0
+    invalid_data_urls_removed = 0
     manifests_checked = 0
     manifest_event_ids: set[str] = set()
     redactor = force_redactor()
     for path in manifests:
         try:
             checked = snapshot_store.validate_manifest(path)
-            manifest_event_ids.add(str(checked["manifest"].get("event_id", "")))
+            manifest = checked["manifest"]
+            manifest_event_ids.add(str(manifest.get("event_id", "")))
+            removed_count = manifest.get("invalid_data_urls_removed", 0)
+            if type(removed_count) is not int or removed_count < 0:
+                raise ValueError("invalid invalid_data_urls_removed receipt")
+            invalid_data_urls_removed += removed_count
             envelope = checked["envelope"]
             args_text = str(envelope.get("args", ""))
             result_text = str(envelope.get("result", ""))
             combined = args_text + "\n" + result_text
-            if "data:" in combined and ";base64," in combined:
+            if contains_persisted_data_url(combined):
                 raw_data_url_text_objects += 1
             if redactor is not None:
                 file_read = str(checked["manifest"].get("tool_name", "")) in {"read_file", "search_files"}
@@ -402,21 +417,22 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
         quality_holds.append("legacy_cohort_storage_reduction")
     if redactor is None:
         quality_holds.append("redactor_audit_unavailable")
+    if invalid_data_urls_removed:
+        quality_holds.append("snapshot_fidelity_loss")
 
     if hard_failures:
         verdict = "FAIL"
-        decision = "rollback_or_disable_v2"
     elif quality_holds:
         verdict = "HOLD"
-        decision = "continue_soak_or_optimize"
     else:
         verdict = "PASS"
-        decision = "retire_legacy_shadow"
+    decision = "historical_safety_evidence_only"
 
     return {
         "schema_version": 1,
         "verdict": verdict,
         "decision": decision,
+        "product_authority": "none",
         "window": {
             "since_hours": args.since_hours,
             "observed_hours": observed_hours,
@@ -486,6 +502,7 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
             "legacy_cohort_active_bytes": legacy_cohort_active_bytes,
             "legacy_cohort_estimated_bytes": legacy_cohort_bytes,
             "legacy_cohort_storage_reduction": round(legacy_cohort_storage_reduction, 6),
+            "invalid_data_urls_removed": invalid_data_urls_removed,
         },
         "registered_thresholds": {
             "min_hours": args.min_hours,

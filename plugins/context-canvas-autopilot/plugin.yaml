@@ -1,6 +1,6 @@
 name: context-canvas-autopilot
-version: 0.2.4
-description: "Lightweight active sanitized snapshot cache with selective semantic projection and legacy-policy reverse shadow metrics."
+version: 0.2.5
+description: "Retired broad-capture experiment; production runtime is forced off while safety regressions and historical replay remain available."
 author: "Hermes Agent Harness Plus"
 hooks:
   - post_tool_call

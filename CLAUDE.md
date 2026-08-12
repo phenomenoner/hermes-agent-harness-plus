@@ -5,8 +5,8 @@ Guidance for AI agents working in this repository.
 ## What this repo is
 
 A companion toolbox for [Hermes Agent](https://github.com/NousResearch/hermes-agent):
-Task Canvas evidence trails (`packages/context-canvas/`), an autopilot plugin
-(`plugins/`), local Qdrant recall helpers (`scripts/`), Hermes skills
+Task Canvas evidence trails (`packages/context-canvas/`), archived Autopilot
+source (`plugins/`), local Qdrant recall helpers (`scripts/`), Hermes skills
 (`skills/`), and ops checklists (`ops-rules/`). Hermes Agent itself is never
 modified; every piece is optional, local-first, and fail-open.
 

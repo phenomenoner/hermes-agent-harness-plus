@@ -159,7 +159,11 @@ A nonzero `skipped_count` is a file-integrity signal. Review the skipped file, p
 
 ## Manual Canvas vs Autopilot
 
-A manual Canvas is an intentional goal, decision, and verification map. Autopilot v2 is a separate fail-open mechanism that stores sanitized snapshots of eligible non-Canvas tool results. Its semantic projection follows this policy:
+> **Current status:** broad Autopilot capture is retired; this section retains the historical policy contract for evidence interpretation and regression tests.
+
+An explicit Canvas is the supported path: an intentional goal, decision, dependency, and verification map backed by evidence refs. The former Autopilot v2 broad-capture mechanism is retired and its production runtime is forced to `off`; do not enable it or treat replay output as rollout authority.
+
+For historical evidence interpretation only, it was a fail-open mechanism that stored sanitized snapshots before applying this semantic projection policy. “Sanitized” means the configured redactor reached a fixed point; it is not proof that every sensitive value was recognized.
 
 | Policy case | Semantic class |
 |---|---|
@@ -174,7 +178,7 @@ A manual Canvas is an intentional goal, decision, and verification map. Autopilo
 
 Fixed tool and command allowlists determine which successful calls match the verification and mutation cases; failure classification takes precedence.
 
-Autopilot does not know the task goal, rejected alternatives, assumptions, or why evidence changed a decision. Its cache is recovery material, not a substitute for a manual Canvas when the trigger policy applies. Queue saturation, redactor failure, or flush timeout must not break the original tool call, so important persistence still requires explicit records and read-back verification.
+The archived mechanism did not know the task goal, rejected alternatives, assumptions, or why evidence changed a decision. That is why broad capture is not a substitute for explicit records and read-back verification. If a future task has a real point-in-time snapshot need, require a new explicit, one-shot, bounded, visible, expiring, and deletable design rather than reactivating the archive.
 
 ## Closeout and Durable Triage
 
@@ -221,7 +225,7 @@ Status should describe current truth. A planned node is not done merely because 
 - Starting a second canvas after compaction instead of using `canvas_recent`.
 - Leaving stale active nodes after the work has finished.
 - Keeping child findings outside the parent evidence map.
-- Treating Autopilot snapshots as a complete reasoning record.
+- Treating archived Autopilot snapshots as current truth or a complete reasoning record.
 - Filing the full closeout into MemPalace without triage.
 
 ## Verification

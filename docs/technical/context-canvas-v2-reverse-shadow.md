@@ -1,228 +1,197 @@
-# Context Canvas v2 reverse-shadow design
+# Context Canvas v2 reverse-shadow archive
 
 ## Status
 
-Candidate revision: `0.2.4-installed-tool-root`
+Archived revision: `0.2.5-retired-broad-capture`
 
-This revision covers only the optional Context Canvas soak reporter, package,
-and user plugin. It does not alter Hermes conversation history, model-visible
-tool results, or prompt construction.
+**Broad post-tool snapshot capture and automatic semantic promotion are retired.**
+The production plugin runtime is forced to `off`, including when an old config
+still requests an active mode. Do not start a new payload-capture soak or canary.
 
-Context Canvas v2 is a lightweight functional plugin focused on snapshot/cache,
-selective semantic projection, and reverse-shadow quality comparison. It is not
-a system-level security or platformization layer.
+Context Canvas itself is not retired. The supported path remains the explicit
+Canvas package, MCP tools, and `context-canvas-memory` skill.
 
 ## Decision
 
-Context Canvas v2 separates four roles that v1 mixed together:
+The job to be done is to recover decisions, blockers, dependencies,
+verifications, and evidence after a long task, context compaction, or handoff.
+That job is already covered by two intentional layers:
+
+1. Hermes session history preserves chronology and can be searched later.
+2. Explicit Context Canvas records a curated evidence map with
+   `canvas_start`, `canvas_record`, `canvas_read`, `canvas_search`, and
+   `canvas_closeout`.
+
+The broad Autopilot experiment added a second payload-persistence plane but did
+not establish an incremental improvement over that baseline in recovery time,
+tool reruns, task quality, or user trust. Its runtime authority is therefore
+removed rather than extended through another soak.
+
+The implementation, source-only replay, reporter, and regression tests remain
+in the repository for historical inspection and safety debt while old copies may
+still exist. A green replay or report has **no product or rollout authority**.
+
+## Historical design
+
+The experiment separated four roles that its predecessor mixed together:
 
 1. **Observation** — one content-free metric row per tool event.
-2. **Snapshot cache** — a full sanitized point-in-time invocation/result
-   envelope, compressed and addressed by SHA-256.
-3. **Semantic projection** — only failures, successful verification commands,
-   and state-changing actions become Canvas nodes.
-4. **Lifecycle** — cache sessions record turn end/finalization separately from
+2. **Snapshot cache** — a sanitized point-in-time invocation/result envelope,
+   compressed and addressed by SHA-256.
+3. **Semantic projection** — selected failures, successful verification
+   commands, and state-changing actions became Canvas nodes.
+4. **Lifecycle** — cache sessions recorded turn end/finalization separately from
    the semantic graph.
 
-The v2 path is active. In `v2_active_legacy_shadow`, the v1 policy receives the
-same tool event as a shadow, but it writes only a decision, reason, estimated ref
-bytes, and estimated node count to the private metrics ledger. It does not
-duplicate v1 payloads, refs, or nodes. The stateful shadow decision is computed
-under the hook receive-order lock before an immutable queued event is handed to
-workers. `event_sequence` is a bounded, content-free metric field; it lets
-reporting and tests recover the ordered decision stream even when persistence
-workers finish out of order. Synchronous and asynchronous writes therefore
-share the same legacy threshold attribution. `v2_active` does not run the
-stateful legacy evaluator and emits only disabled/zero legacy fields.
-
-## Filesystem layout
+Historical active modes used this layout:
 
 ```text
-~/.hermes/context-canvas-cache-v2/       # owner-only cache, not Canvas search
+~/.hermes/context-canvas-cache-v2/       # owner-only snapshot cache
   objects/text/sha256/ab/<digest>.json.zlib
   objects/binary/sha256/cd/<digest>.bin
   sessions/<session>/
-    snapshots/sr_000001.json             # bounded manifest, no raw content
+    snapshots/sr_000001.json
     state.json
     lifecycle.json
 
-~/.hermes/context-canvas/                # high-signal semantic map only
+~/.hermes/context-canvas/                # semantic projection
   auto-v2-<session>/
     canvas.json
     events.jsonl
-    refs/tc_001.md                        # small pointer/excerpt
+    refs/tc_001.md
 
 ~/.hermes/context-canvas-soak/
   v2-active-legacy-shadow/
-    metrics.jsonl                         # owner-only, content-free
+    metrics.jsonl
 ```
 
-A full snapshot is never silently truncated. Embedded `data:*;base64` payloads
-are decoded into content-addressed binary objects and replaced in the text
-envelope with a digest/MIME/size pointer. Undecodable data URLs are removed and
-reported as an externalization error; the reverse-shadow gate then fails.
+This layout is historical evidence, not an installation recommendation.
 
-Automatic persistence always invokes Hermes' force-redactor with URL credential
-redaction before the text object is written. No automatic unsanitized copy is
-kept. A future sealed-raw tier would require explicit operator approval,
-encryption, access logging, and a separate retention policy.
+## Retained safety and forensics behavior
 
-## Active semantic policy
+The dormant path retains these bounded defenses and regression checks:
 
-Every non-Canvas tool call receives a cache manifest. A Canvas is created only
-when at least one event is promoted:
+- production config resolves every requested mode to `off`;
+- the Hermes force-redactor is applied to a bounded fixed point before text is
+  persisted; backend drift, cycles, or non-convergence cancel capture;
+- valid embedded `data:*;base64` payloads are moved to content-addressed binary
+  objects and replaced by digest/MIME/size receipts;
+- malformed data URLs are removed and recorded as
+  `invalid_data_urls_removed`; this is a fidelity loss, not a storage failure;
+- a real binary-object storage failure remains an externalization hard failure;
+- reporter and replay checks require one contiguous data URL, avoiding false
+  positives from separated documentation terms;
+- Context Canvas self-calls remain excluded;
+- hook failures remain outside the original tool result.
 
-| Event | Aggregate node |
-|---|---|
-| Tool error, nonzero exit, traceback | `AUTO_V2_FAILURES` (`blocked/blocked`) |
-| Successful test/lint/build/health command | `AUTO_V2_VERIFICATIONS` (`verification/done`) |
-| File/config/deploy/memory/cron mutation or delegation | `AUTO_V2_ACTIONS` (`action/done`) |
-| Retrieval, browsing, ordinary reads | Cache only; no node |
-| Context Canvas MCP/tool calls | Excluded from active cache; shadow decision still measured |
+Fixed-point behavior only proves that another pass of the same redactor no
+longer changes the text. It is not a confidentiality guarantee and does not
+prove that every sensitive value was recognized.
 
-Each aggregate node keeps at most 12 recent semantic refs. Older full snapshots
-and manifests remain in the cache until retention policy is applied.
+The old `retention_days` field is metadata. The archived implementation does not
+provide an enforced expiry/garbage-collection path, so it must not be described
+as an active retention policy.
 
-## Configuration
+## Runtime fence
 
-Behavioral settings live in Hermes `config.yaml`:
+Existing installations should remove `context-canvas-autopilot` from
+`plugins.enabled`. A stale entry may remain temporarily during cleanup, but it
+must read:
 
 ```yaml
 plugins:
-  enabled:
-    - context-canvas-autopilot
   entries:
     context-canvas-autopilot:
-      mode: v2_active_legacy_shadow
-      revision: 0.2.4-installed-tool-root
-      tool_root: /absolute/path/to/hermes-agent-harness-plus/packages/context-canvas
-      cache_root: ~/.hermes/context-canvas-cache-v2
-      metrics_root: ~/.hermes/context-canvas-soak/v2-active-legacy-shadow
-      retention_class: ephemeral-cache
-      retention_days: 30
-      max_semantic_refs: 12
-      legacy_tool_threshold: 5
-      legacy_large_result_chars: 6000
-      legacy_max_ref_chars: 50000
-      metrics_enabled: true
-      require_hermes_redactor: true
+      mode: off
+      revision: 0.2.5-retired-broad-capture
 ```
 
-Modes:
+The production code accepts only `off`. Historical active modes are available
+only through the module's explicit test configuration used by source replay and
+regression tests.
 
-- `v2_active_legacy_shadow` — soak mode; v2 persists, v1 only scores.
-- `v2_active` — v2 persists without running or emitting legacy comparison.
-- `legacy_active_safe` — emergency compatibility mode: v1 decides which events
-  are projected, but v2 redaction/object storage remains the persistence layer.
-- `off` — no capture and no metrics.
+### Archived code-execution trust boundary
 
-The old `HERMES_CONTEXT_CANVAS_*` behavior variables are compatibility
-fallbacks only. New configuration uses `config.yaml`; copied plugins should set
-`tool_root`. A process-level `HERMES_CONTEXT_CANVAS_TOOL` remains supported as
-an override, but an environment value scoped to the MCP server subprocess is
-not inherited by the gateway plugin.
+Historical replay still loads the Context Canvas package. Its `tool_root` is a
+**code-execution trust setting**, not a data directory. Any test-only root must
+be an absolute, owner-controlled directory containing regular
+`context_canvas/__init__.py`, `context_canvas/core.py`, and
+`context_canvas/snapshot.py` files. Resolution gives that root import
+precedence and rejects modules loaded from another origin.
 
-`tool_root` is a **code-execution trust setting**. It must be an absolute,
-owner-controlled directory with regular `context_canvas/__init__.py`,
-`context_canvas/core.py`, and `context_canvas/snapshot.py` files. Resolution
-revalidates that layout and ownership, gives the selected root import
-precedence, and rejects imported `context_canvas` modules whose origin is
-elsewhere.
+Validation requires POSIX effective-UID semantics. It rejects symbolic links,
+group- or world-writable code paths, and replacement-capable ancestors; on a
+platform without an equivalent ownership check, activation must fail closed.
+Do not point historical replay at a download or shared writable directory.
 
-Validation currently requires POSIX effective-UID semantics. It rejects
-symbolic links for the selected root, package directory, or required files;
-group- or world-writable code paths; and replacement-capable ancestors up to a
-protected system-owned boundary. A root-owned sticky directory such as `/tmp`
-is accepted within an otherwise protected ancestor chain. On non-POSIX hosts,
-tool-root activation will fail closed until an equivalent ownership and ACL rule
-is implemented. This global import-path mutation is why untrusted or shared
-writable roots are not supported.
+## Historical report semantics
 
-## Pre-registered benchmark
+The reporter still emits `PASS`, `HOLD`, or `FAIL` so old evidence can be read:
 
-The soak report is generated by:
+- **FAIL** — a safety/integrity hard gate failed.
+- **HOLD** — hard gates passed but sample, performance, storage, redactor-audit,
+  or snapshot-fidelity criteria did not.
+- **PASS** — the checked historical safety criteria passed.
 
-```bash
-python scripts/context_canvas_v2_soak_report.py
+Every report now also emits:
+
+```json
+{
+  "decision": "historical_safety_evidence_only",
+  "product_authority": "none"
+}
 ```
 
-### Hard FAIL / disable-or-rollback gates
+A `PASS` never authorizes installation, live capture, a canary, or semantic
+promotion.
 
-Every value must remain zero:
+Historical hard failures include:
 
-- invalid or wrong-schema metric rows;
-- active capture failures;
-- active snapshots of Context Canvas self-calls;
-- model-visible replacement (`replacement_applied` is always false);
-- successful captures not using the Hermes force-redactor;
-- data-URL externalization errors;
+- invalid metric rows or capture failures;
+- Context Canvas self-capture;
+- model-visible tool-result replacement;
+- a successful capture without the expected redactor backend;
+- data-URL object-storage failures;
 - invalid manifests, missing objects, decompression failures, or digest
   mismatches;
-- raw `data:*;base64` remaining in a text envelope;
-- stored envelope text that changes when the force-redactor is re-applied.
+- a contiguous raw `data:*;base64` value in a text envelope;
+- persisted text changed by another redactor pass;
+- event-pointer or metric/manifest join failures.
 
-### Decisive-improvement gates
+`invalid_data_urls_removed` is surfaced separately as
+`snapshot_fidelity_loss`. It is intentionally not mislabeled as object-storage
+failure.
 
-For the lightweight live reverse-shadow soak, the reporter defaults require at
-least 48 hours, 100 eligible tool events, and 5 sessions. The hook latency
-gates and reporter defaults are aligned at p95 at most 5 ms and p99 at most
-20 ms:
+## Historical verification only
 
-- snapshot coverage: at least 99.9%;
-- hook latency: p95 at most 5 ms and p99 at most 20 ms;
-- semantic-node reduction versus v1 shadow: at least 70%;
-- active effective storage/raw ratio: at most 80%;
-- legacy-cohort effective bytes versus estimated v1 refs: at least 25% lower;
-- full snapshot/object round trip: 100% for checked manifests;
-- manual blind review: v2 is better or equal in at least 80% of sampled
-  recoveries, strictly better in at least 60%, and worse in at most 10%;
-- curated Canvas search p95 remains under 100 ms and indexed all-scope search
-  p95 remains under 500 ms in the separate retrieval benchmark.
+The retained source can be checked without touching live storage:
 
-The physical-byte comparison counts every manifest and only the first write of
-an object deduplicated by content address. For each successful, non-duplicate
-callback, the active raw denominator is
-`active_object_raw_bytes + active_embedded_raw_bytes`; the effective physical
-numerator is `active_manifest_bytes + first-write text-envelope stored bytes +
-active_embedded_stored_bytes`. The plugin records all externalized binary
-logical bytes in `active_embedded_raw_bytes`, but adds an embedded object's
-physical `stored_bytes` only when that event is its first write (`reused: false`).
-The reporter applies the same accounting to the legacy cohort. Duplicate event
-callbacks remain visible to hard gates but do not recompute capacity totals.
-The v1 estimate uses the exact shadow decision and the legacy 50,000-character
-ref cap. Reporter deduplication is limited to quality and capacity aggregates;
-hard-gate counters always inspect every valid selected metric row, including
-conflicting duplicate callbacks.
+```bash
+PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider \
+  tests/test_context_canvas_autopilot.py \
+  tests/test_context_canvas_soak_report.py
 
-## Review rules
+python scripts/context_canvas_v2_replay.py --sync-writes
+```
 
-- **PASS** — all hard gates pass on the live soak, minimum duration/volume is
-  met, and every decisive-improvement gate passes. A source replay PASS is
-  candidate evidence only, not live retirement evidence. After the live PASS,
-  switch to `v2_active`, stop the v1 shadow, and retain the rollback artifact
-  for a bounded burn-in window.
-- **HOLD** — safety and integrity pass, but sample size or one or more quality
-  gates do not. Keep the reverse shadow and optimize the failed dimensions.
-- **FAIL** — any hard functional/integrity gate fails. Switch to `off` for a
-  capture or integrity regression, or `legacy_active_safe` for a non-security
-  operational regression; preserve evidence and investigate before resuming.
+Replay writes only to a newly created `/tmp/context-canvas-v2-replay-*`
+directory unless an explicit output root is supplied. It is historical safety
+evidence only. Do not copy its mode into Hermes config or use its result as a
+live-readiness gate.
 
-Retiring v1 means disabling its runtime shadow and removing it from the next
-candidate after the rollback-retention window. Historical v1 canvases are not
-rewritten or deleted by this rollout.
+## If a future exact snapshot need appears
 
-## Verification sequence
+Start a new, separately reviewed design rather than reactivating this plugin.
+The minimum contract is:
 
-1. Run focused snapshot/core/plugin tests.
-2. Replay a stratified historical sample plus secret, data URL, duplicate,
-   failure, verification, mutation, and concurrent synthetic fixtures.
-3. Run the full repository test suite.
-4. Install the package/plugin into owner-controlled Hermes paths.
-5. Verify source/deployed SHA-256 parity when a live candidate is installed.
-6. Restart through the native gateway lifecycle, then use a fresh session for
-   one real tool event and inspect the manifest, metric, and semantic behavior.
-7. Enable the quiet watchdog and one-shot 48-hour live-soak review.
+- explicit opt-in for one named task and one next/specified tool call;
+- visible capture indicator;
+- bounded bytes and default-no-promotion behavior;
+- enforced expiry and orphan-object garbage collection;
+- list, read-back, and immediate delete operations;
+- default denial for secrets, credentials, memory, and session-history tools;
+- sanitize/integrity failure cancels only the capture, never the original tool;
+- measured benefit against explicit Canvas plus Hermes session history.
 
-The replay writes only to a newly created `/tmp/context-canvas-v2-replay-*`
-directory. It is candidate evidence only, not live retirement evidence, and it
-never modifies the live cache or Canvas store.
+Until such a need and design are independently established, broad payload
+capture remains retired.
