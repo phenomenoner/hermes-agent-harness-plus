@@ -9,7 +9,8 @@ Initial public bundle:
 - Skills for Task Canvas and Qdrant recall sidecars.
 - Optional complexity × Bayesian delegation calibrator with score, recommend,
   record, and report commands.
-- Release, artifact handoff, scheduled-agent, and MCP sidecar health checklists.
+- Release, artifact handoff, scheduled-agent, MCP sidecar health, and runtime
+  cutover checklists.
 - Installation guide and GitHub Pages website.
 
 Kept outside this bundle:

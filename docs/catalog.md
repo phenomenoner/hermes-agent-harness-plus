@@ -88,3 +88,7 @@
 - Path: `ops-rules/mcp-sidecar-health-checklist.md`
 - Purpose: distinguish recovered MCP transport events from sidecar, backend, or
   host failures before restarting services or touching indexed data.
+- Path: `ops-rules/runtime-cutover-checklist.md`
+- Purpose: replace a running agent component through an immutable candidate,
+  current-window rollback, a monotonic transaction, and independent runtime
+  verification.
