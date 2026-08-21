@@ -48,6 +48,35 @@ Prefer deterministic commands that work in minimal shell environments. Avoid
 relying on interactive helpers or notebook-style execution paths inside an
 unattended runner.
 
+### Compare configuration by meaning
+
+Service managers and CLIs may render equivalent set-like values in a different
+order. A whole-line string comparison can turn harmless display order into a
+false drift alert.
+
+When a watchdog compares effective configuration:
+
+- parse and compare fields independently instead of matching one rendered block;
+- normalize whitespace, casing, address notation, or quoting only where the
+  configuration contract says those differences are equivalent;
+- sort and de-duplicate values only when the field is explicitly unordered;
+- keep order-sensitive fields order-sensitive;
+- test both directions: reordered equivalent values should pass, while a missing,
+  added, or changed value should fail.
+
+Keep the raw observation in the local diagnostic receipt and report the normalized
+difference in the alert. This preserves evidence without making presentation order
+part of the health contract.
+
+### Attribute alerts to the failing layer
+
+Preserve the child script's exit status and specific diagnostic before a scheduler
+or messaging wrapper summarizes the failure. A script-only job should report its
+script or dependency failure; an agent or model failure label belongs only to a
+path that actually invoked that layer. When the wrapper cannot classify the cause,
+report an unknown scheduled-job failure and point to the bounded source receipt
+instead of guessing.
+
 ## 3. Resolve helper inputs explicitly
 
 Scheduled agents often run from a project directory, but the instructions they

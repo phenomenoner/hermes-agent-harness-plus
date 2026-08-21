@@ -80,7 +80,8 @@
   share-ready artifacts without leaking the private runtime that produced them.
 - Path: `ops-rules/scheduled-agent-health-checklist.md`
 - Purpose: keep unattended agent jobs quiet on success, specific on failure, and
-  backed by source-level verification rather than scheduler status alone.
+  backed by source-level verification, semantic configuration comparisons, and
+  alerts attributed to the layer that actually failed.
 - Path: `ops-rules/docs-and-website-update-guide.md`
 - Purpose: keep the README, docs, and GitHub Pages site consistent in voice,
   visual tokens, and facts as the toolbox evolves; includes the content sync
