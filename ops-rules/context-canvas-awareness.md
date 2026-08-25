@@ -7,8 +7,8 @@ Use this as a standing operational awareness rule for Hermes coding and engineer
 Before the third substantive tool call, assess the task shape once:
 
 - Load `context-canvas-memory` when compaction or cross-worker coordination is expected, when a gated external mutation has several verification steps, or when at least two documented complexity signals apply.
-- Do not start a Canvas for simple or bounded work, a first ordinary failure, fixed elapsed time, or the mere availability of Canvas tools.
-- If a Canvas is started, use one stable explicit session ID, record bounded sanitized evidence at phase boundaries, and reconcile it before final claims.
+- Do not load `context-canvas-memory` for simple or bounded work, a first ordinary failure, fixed elapsed time, or the mere availability of Canvas tools.
+- After selection, defer every Canvas start, evidence, reconciliation, and closeout procedure to the loaded skill.
 
 ## Trajectory checkpoint awareness
 

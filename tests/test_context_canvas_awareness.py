@@ -45,6 +45,14 @@ def test_reflection_skill_is_bounded_and_uses_only_hermes_canvas_surfaces() -> N
     assert "advisory disposition only" in normalized
     assert "at most three implicit reflection passes" in normalized
     assert "ordinary `continue` writes nothing" in normalized
+    assert (
+        '`mcp__context_canvas__canvas_read(session_id="<active-session-id>", '
+        "include_refs=false)`"
+    ) in normalized
+    assert (
+        '`mcp__context_canvas__canvas_search(session_id="<active-session-id>", '
+        'query="<specific-missing-fact>", limit=5)`'
+    ) in normalized
 
     hermes_calls = set(re.findall(r"`(mcp__context_canvas__canvas_[a-z_]+)", body))
     assert hermes_calls == {
@@ -71,7 +79,14 @@ def test_global_awareness_rule_selects_skills_without_granting_authority() -> No
     assert "before the third substantive tool call" in normalized
     assert "never task authority" in normalized
     assert "does not grant approval" in normalized
-    assert "do not start" in normalized
+    assert "do not load `context-canvas-memory`" in normalized
+    for procedural_instruction in (
+        "do not start a canvas",
+        "use one stable explicit session id",
+        "record bounded sanitized evidence",
+        "reconcile it before final claims",
+    ):
+        assert procedural_instruction not in normalized
 
 
 def test_install_guide_installs_both_skills_and_projects_global_awareness() -> None:

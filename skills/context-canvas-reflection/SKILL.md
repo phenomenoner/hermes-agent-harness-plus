@@ -1,7 +1,7 @@
 ---
 name: context-canvas-reflection
 description: Use when failures repeat or evidence contradicts the path.
-version: 1.0.0
+version: 1.0.1
 author: hermes-agent-harness-plus contributors
 license: MIT
 platforms: [linux, macos, windows]
@@ -43,7 +43,7 @@ An explicit `/context-canvas-reflection` invocation is user-requested. Label it 
 ## Run one bounded pass
 
 1. **Bind the checkpoint.** Name the trigger and a stable evidence watermark such as a source revision, test result, plan revision, or user change. Reuse the prior disposition when the same trigger was already evaluated at the same watermark.
-2. **Recover only useful context.** Start from the current conversation, repository, plan, and executed evidence. If an active Canvas ID is already known, the complete retrieval allowance is at most one `mcp__context_canvas__canvas_read` call with refs excluded and, only when a specific missing fact warrants it, at most one bounded `mcp__context_canvas__canvas_search` call. Do not start or recover a Canvas solely for reflection.
+2. **Recover only useful context.** Start from the current conversation, repository, plan, and executed evidence. If an active Canvas ID is already known, the complete retrieval allowance is at most one `mcp__context_canvas__canvas_read(session_id="<active-session-id>", include_refs=false)` call and, only when a specific missing fact warrants it, at most one `mcp__context_canvas__canvas_search(session_id="<active-session-id>", query="<specific-missing-fact>", limit=5)` call. Never omit `session_id` or search across Canvases during reflection. Do not start or recover a Canvas solely for reflection.
 3. **Revalidate freshness.** Check the smallest live source or runtime seam that can confirm or falsify the relevant stored claim. Mark unavailable evidence `unknown`; never guess.
 4. **Challenge path dependence.** Answer briefly:
    - What is the actual objective and acceptance condition now?
