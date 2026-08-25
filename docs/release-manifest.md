@@ -6,11 +6,12 @@ Initial public bundle:
 - Archived Context Canvas Autopilot v2 source plus historical safety replay and
   reporting scripts; production broad capture is forced off.
 - Qdrant skill/session indexing, MCP search, refresh, and health-check scripts.
-- Skills for Task Canvas and Qdrant recall sidecars.
+- Skills for deliberate Task Canvas use, bounded trajectory reflection, and
+  Qdrant recall sidecars.
 - Optional complexity × Bayesian delegation calibrator with score, recommend,
   record, and report commands.
-- Release, artifact handoff, scheduled-agent, MCP sidecar health, and runtime
-  cutover checklists.
+- Context Canvas awareness plus release, artifact handoff, scheduled-agent, MCP
+  sidecar health, and runtime cutover checklists.
 - Installation guide and GitHub Pages website.
 
 Kept outside this bundle:

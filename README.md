@@ -55,7 +55,7 @@ hermes-agent-harness-plus/
 | 🛰️ **Canvas MCP sidecar** | Native MCP tools: start/read/search/closeout, recover recent canvas IDs with `canvas_recent`, or atomically attach evidence + a node with `canvas_record` |
 | 🔎 **Qdrant recall kit** | Index selected skills & recent sessions locally; dry-run previews and secret-pattern redaction by default |
 | 🩺 **Recall watchdog** | Quiet when healthy, loud when broken — validates collections after refreshes, container starts, and restarts |
-| 📚 **Public skills** | `context-canvas-memory` & `qdrant-recall-sidecar` — drop-in guidance for any Hermes Agent user |
+| 📚 **Public skills** | `context-canvas-memory`, bounded `context-canvas-reflection`, and `qdrant-recall-sidecar` — drop-in guidance for any Hermes Agent user |
 | 🧭 **Delegation calibrator** | Optional complexity × Bayesian evidence for direct vs `luna_max`; [Baton](https://github.com/phenomenoner/baton-fanout-skill) remains the qualitative dispatch brake and validation authority |
 
 The former Autopilot broad-capture plugin remains as a source archive for
@@ -116,6 +116,7 @@ mcp_servers:
 | 🗺️ [Context Canvas internals](docs/technical/context-canvas.md) | Data model & technical notes |
 | 🧾 [Autopilot v2 archive](docs/technical/context-canvas-v2-reverse-shadow.md) | Historical broad-capture design, retirement decision, and retained safety replay |
 | 🔎 [Qdrant recall internals](docs/technical/qdrant-recall.md) | Indexing, collections & health checks |
+| ✅ [Context Canvas awareness](ops-rules/context-canvas-awareness.md) | Standing selection rule for deliberate task maps and bounded trajectory reflection, without granting task authority |
 | 🧭 [Delegation calibrator](ops-rules/complexity-bayesian-delegation.md) | Optional complexity × Bayesian routing evidence; Baton remains the dispatch brake and the main agent owns final judgment |
 | 🚀 [Release manifest](docs/release-manifest.md) | What ships in each bundle |
 

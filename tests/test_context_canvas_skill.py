@@ -11,14 +11,22 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "context-canvas-memory" / "SKILL.md"
+REFLECTION_SKILL = ROOT / "skills" / "context-canvas-reflection" / "SKILL.md"
+CANVAS_AWARENESS_RULE = ROOT / "ops-rules" / "context-canvas-awareness.md"
+CANVAS_AWARENESS_TEST = ROOT / "tests" / "test_context_canvas_awareness.py"
+UPSTREAM_LICENSE = ROOT / "docs" / "third-party" / "context-canvas-codex-LICENSE.txt"
 AUTOPILOT_PLUGIN = ROOT / "plugins" / "context-canvas-autopilot" / "__init__.py"
 PUBLISHABLE_ARTIFACTS = (
     SKILL,
+    REFLECTION_SKILL,
+    CANVAS_AWARENESS_RULE,
+    UPSTREAM_LICENSE,
     ROOT / "docs" / "install.md",
     ROOT / "docs" / "technical" / "context-canvas-v2-reverse-shadow.md",
     ROOT / "plugins" / "context-canvas-autopilot" / "__init__.py",
     ROOT / "plugins" / "context-canvas-autopilot" / "plugin.yaml",
     ROOT / "tests" / "test_context_canvas_autopilot.py",
+    CANVAS_AWARENESS_TEST,
     Path(__file__).resolve(),
 )
 
@@ -478,11 +486,15 @@ def test_share_ready_validator_allows_only_exact_placeholder_home_segments() -> 
 def test_publishable_artifact_set_is_complete_and_explicit() -> None:
     assert PUBLISHABLE_ARTIFACTS == (
         SKILL,
+        REFLECTION_SKILL,
+        CANVAS_AWARENESS_RULE,
+        UPSTREAM_LICENSE,
         ROOT / "docs" / "install.md",
         ROOT / "docs" / "technical" / "context-canvas-v2-reverse-shadow.md",
         ROOT / "plugins" / "context-canvas-autopilot" / "__init__.py",
         ROOT / "plugins" / "context-canvas-autopilot" / "plugin.yaml",
         ROOT / "tests" / "test_context_canvas_autopilot.py",
+        CANVAS_AWARENESS_TEST,
         Path(__file__).resolve(),
     )
 

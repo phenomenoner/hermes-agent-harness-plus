@@ -3,8 +3,9 @@
 This repository is MIT licensed and contains original glue code, operational
 checklists, and public-facing documentation for extending Hermes Agent.
 
-No third-party source code is vendored here. The tools in this repository point
-to, import, or interoperate with the projects below:
+No third-party executable source code is vendored here. The tools in this
+repository point to, import, interoperate with, or adapt documentation from the
+projects below:
 
 - Hermes Agent — https://github.com/NousResearch/hermes-agent — MIT License.
   Tested locally against Hermes Agent v0.14.0, source commit `458a94e42`.
@@ -21,6 +22,14 @@ to, import, or interoperate with the projects below:
 - Baton Fanout Skill — https://github.com/phenomenoner/baton-fanout-skill — MIT
   License. The optional delegation calibrator links to Baton for qualitative
   dispatch, ownership, and validation guidance; no Baton source is vendored.
+- Context Canvas Codex skills —
+  https://github.com/phenomenoner/Chatgpt-Codex-App-Plus/tree/cf43da0a06b2918b41bb386093f45c1d53eeb683/plugins/context-canvas-codex/skills
+  — MIT License. The Hermes Context Canvas authority boundary and bounded
+  reflection skill adapt the checkpoint and reflection guidance to the native
+  eight-tool Hermes MCP surface; Codex hooks, references, and snapshots are not
+  copied. The complete upstream MIT terms, including the repository-level and
+  component-level copyright notices, are preserved in
+  `docs/third-party/context-canvas-codex-LICENSE.txt`.
 - TencentDB-Agent-Memory — https://github.com/TencentCloud/TencentDB-Agent-Memory
   — conceptual inspiration for the short-term symbolic-memory and Mermaid-map
   pattern discussed in the Context Canvas origin story. No source code is copied

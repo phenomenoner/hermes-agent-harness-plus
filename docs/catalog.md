@@ -55,8 +55,12 @@
 ## Skills
 
 - Path: `skills/context-canvas-memory/SKILL.md`
+- Path: `skills/context-canvas-reflection/SKILL.md`
 - Path: `skills/qdrant-recall-sidecar/SKILL.md`
 - Purpose: teach Hermes Agent when to use the harness and what pitfalls to avoid.
+- Context Canvas boundary: the memory skill owns deliberate maps and evidence
+  offload; the reflection skill owns one finite trajectory reassessment after an
+  observable trigger. Neither skill grants task or external-effect authority.
 
 ## Complexity × Bayesian delegation calibrator
 
@@ -73,6 +77,10 @@
 
 ## Ops rules
 
+- Path: `ops-rules/context-canvas-awareness.md`
+- Purpose: make standing Hermes coding instructions aware of the two Context
+  Canvas skills without duplicating their procedures or requiring Canvas for
+  ordinary work.
 - Path: `ops-rules/public-release-checklist.md`
 - Purpose: keep shared tools reusable and safe before a commit becomes public.
 - Path: `ops-rules/artifact-handoff-checklist.md`

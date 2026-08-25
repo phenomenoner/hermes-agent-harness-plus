@@ -178,7 +178,45 @@ from its raw URL, or copy the skill directory into `~/.hermes/skills/`.
 ```bash
 mkdir -p ~/.hermes/skills/harness-plus
 cp -R skills/context-canvas-memory ~/.hermes/skills/harness-plus/
+cp -R skills/context-canvas-reflection ~/.hermes/skills/harness-plus/
 cp -R skills/qdrant-recall-sidecar ~/.hermes/skills/harness-plus/
 ```
 
-Start a fresh Hermes session after adding skills.
+The memory skill owns deliberate task-map and evidence-offload use. The
+reflection skill owns one bounded trajectory reassessment after repeated failure,
+contradicted evidence, real-use failure after local green, or material drift. It
+does not grant authority to replan, roll back, publish, or mutate external state.
+
+## 8. Add Context Canvas awareness to standing coding rules
+
+`ops-rules/context-canvas-awareness.md` is the reviewable source for global
+coding and engineering awareness. Hermes exposes that standing scope through
+`agent.coding_instructions`; do not put the rule in `~/.hermes/AGENTS.md`, which
+is project-scoped rather than global.
+
+First inspect the existing value:
+
+```bash
+hermes config get agent.coding_instructions
+```
+
+If it is empty, project the reviewed rule verbatim:
+
+```bash
+hermes config set agent.coding_instructions "$(python3 -c 'from pathlib import Path; print(Path("ops-rules/context-canvas-awareness.md").read_text())')"
+```
+
+If the value is already non-empty, merge the rule with those standing
+instructions and set the combined reviewed text instead of overwriting it.
+
+Verify discovery and configuration:
+
+```bash
+hermes skills list
+hermes config get agent.coding_instructions
+hermes mcp test context_canvas
+```
+
+Start a fresh Hermes session after adding skills or changing standing
+instructions. Skill discovery and prompt changes do not retrofit the current
+session.
