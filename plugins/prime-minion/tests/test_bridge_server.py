@@ -13,6 +13,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_bridge() -> ModuleType:
+    try:
+        __import__("agent.credential_pool")
+    except ModuleNotFoundError:
+        agent_module = ModuleType("agent")
+        pool_module = ModuleType("agent.credential_pool")
+        setattr(pool_module, "CredentialPool", object)
+        setattr(pool_module, "PooledCredential", object)
+
+        def unavailable_pool(*_args, **_kwargs):
+            raise AssertionError("credential pool must be supplied by the test source")
+
+        setattr(pool_module, "load_pool", unavailable_pool)
+        setattr(agent_module, "credential_pool", pool_module)
+        sys.modules["agent"] = agent_module
+        sys.modules["agent.credential_pool"] = pool_module
+
     spec = importlib.util.spec_from_file_location("prime_minion_bridge_test", ROOT / "bridge_server.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
