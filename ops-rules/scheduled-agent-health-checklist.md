@@ -48,6 +48,35 @@ Prefer deterministic commands that work in minimal shell environments. Avoid
 relying on interactive helpers or notebook-style execution paths inside an
 unattended runner.
 
+### Verify backups before applying retention
+
+A backup file is a candidate, not a recovery point, until its contents are
+verified. A scheduler can exit successfully while the archive is incomplete,
+missing required roots, or unusable by the restore path.
+
+Use an ordered pipeline:
+
+```text
+write temporary artifact -> close producer -> test structure -> verify manifest
+-> rehearse bounded restore -> promote atomically -> register completed generation
+-> prune only older verified generations
+```
+
+Keep these invariants:
+
+- partial archives, temporary outputs, and staging workspaces do not count as
+  completed generations;
+- retention runs only after the newest candidate passes its required checks;
+- a failed candidate leaves every prior usable recovery point untouched;
+- age-based retention also keeps a minimum floor of verified completed
+  generations;
+- an interrupted artifact is quarantined or preserved for diagnosis only after
+  confirming no live producer still owns it;
+- scheduler status, archive existence, and file size are not restore evidence.
+
+This ordering prevents a run that produced an unusable artifact from silently
+reducing recovery depth.
+
 ### Compare configuration by meaning
 
 Service managers and CLIs may render equivalent set-like values in a different
