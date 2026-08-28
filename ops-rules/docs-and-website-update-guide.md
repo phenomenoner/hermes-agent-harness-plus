@@ -33,9 +33,9 @@ identical across every surface.
 - Playful naming for problems is encouraged ("the scrollback graveyard 🪦");
   playful naming for features is not — features keep their real names.
 - **Honest marketing only.** No invented user counts, no fake testimonials, no
-  fabricated benchmarks, no urgency tricks. The only numbers allowed on any
-  surface are verifiable facts (component counts, "100% local-first", "0 changes
-  to Hermes core", "MIT").
+  fabricated benchmarks, no urgency tricks. Verifiable component counts,
+  local-state defaults, "0 changes to Hermes core", and "MIT" are acceptable;
+  provider-backed components must say so explicitly.
 - Public surfaces are English. Keep commands copy-pasteable and tested.
 
 ### Emoji lexicon
@@ -49,8 +49,8 @@ Use these consistently; one emoji per heading, at the start:
 | Watchdog / health | 🩺 | Skills / guides | 📚 |
 | Checklists / ops | ✅ | Install / package | 📦 |
 | Components / catalog | 🧩 | Website | 🌈 |
-| Local-first | 🏠 | Lightweight | 🪶 |
-| Fail-open | 🛟 | Evidence | 🧾 |
+| Local state | 🏠 | Lightweight | 🪶 |
+| Failure posture | 🛟 | Evidence | 🧾 |
 | Share / gift | 🎁 | Principles / compass | 🧭 |
 
 ---
@@ -114,9 +114,9 @@ Signature gradients:
 2. `.hero` — pill badge, `h1` with `.rainbow` span, lead, 3 CTAs, showcase panel
    (mac-dots window with three `.note` rows) with floating emoji.
 3. `.statbar` — exactly 4 honest facts. If the active component count changes,
-   update the `6+` tile; archived source does not count as an active component.
+   update the `7+` tile; archived source does not count as an active component.
 4. Problem section — kicker `🪦`, three `.ouch` pain cards.
-5. `#features` — six `.card`s, one per active component; emoji tile + `h3` + ≤2
+5. `#features` — seven `.card`s, one per active component; emoji tile + `h3` + ≤2
    sentences. New component ⇒ new card (and consider the grid still balancing
    at 3 columns).
 6. `#quickstart` — three `.step`s with dark `.code` blocks. Each block carries
@@ -221,10 +221,10 @@ Reuse before rewriting; edit here first if the brand language evolves.
 - "Keep the receipts."
 - "Your agent works hard. Its best clues deserve better than line 4,000."
 - "The scrollback graveyard."
-- "Six little helpers, one happy harness." (update the number with the count)
+- "Seven little helpers, one happy harness." (update the number with the count)
 - "Cute on the outside, careful on the inside."
 - "Take one piece or take them all — Hermes Agent itself is never modified."
-- "Nothing leaves home."
+- "Local state by default; provider-backed calls stay explicit."
 - "Evidence or it didn't happen." / "'Trust me' is not a citation."
 - "Pick the pieces you need, leave the rest."
 - "May your agent never lose a clue again. 🧸✨"

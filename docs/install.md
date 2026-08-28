@@ -220,3 +220,54 @@ hermes mcp test context_canvas
 Start a fresh Hermes session after adding skills or changing standing
 instructions. Skill discovery and prompt changes do not retrofit the current
 session.
+
+## 9. Install the Prime Agent minion bridge
+
+The optional Prime minion plugin runs Prime Agent's coding loop while model
+inference and OpenAI Codex OAuth stay on the Hermes side. It supports ephemeral
+tasks and resumable transcript sessions.
+
+Prerequisites: Git, Node.js, npm, a working Hermes plugin installation,
+`aiohttp>=3.9,<4` in the Python environment that runs `hermes`, and an
+authenticated `openai-codex` credential.
+
+```bash
+python -m pip install 'aiohttp>=3.9,<4'
+mkdir -p ~/.hermes/plugins
+cp -R plugins/prime-minion ~/.hermes/plugins/prime-minion
+cd ~/.hermes/plugins/prime-minion
+python scripts/bootstrap_runtime.py
+python scripts/bootstrap_runtime.py --verify-only
+hermes plugins doctor . --ci
+hermes plugins enable prime-minion
+hermes gateway restart
+```
+
+A new Hermes session should expose `delegate_minion`,
+`minion_session_status`, and `close_minion_session`. See the
+[plugin guide](../plugins/prime-minion/README.md) and
+[technical architecture](technical/prime-minion.md) for the route, credential,
+and resume contracts.
+
+### Add the PMO minion routing rule globally
+
+`ops-rules/prime-minion-pmo-routing.md` is the reviewable standing rule for
+main-agent authority, the Prime minion execution lane, independent review, and
+fallback behavior. Hermes global coding instructions live in
+`agent.coding_instructions`; project `AGENTS.md` files are not global.
+
+Inspect the existing value first:
+
+```bash
+hermes config get agent.coding_instructions
+```
+
+If it is empty, project the reviewed rule:
+
+```bash
+hermes config set agent.coding_instructions "$(python3 -c 'from pathlib import Path; print(Path("ops-rules/prime-minion-pmo-routing.md").read_text())')"
+```
+
+If it is non-empty, merge the two reviewed rules and set the combined text
+instead of overwriting existing standing instructions. Start a fresh Hermes
+session or restart the gateway after changing the global rule.

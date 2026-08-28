@@ -75,12 +75,36 @@
   `BATON_DELEGATION_STORE`; it does not persist raw prompts, logs, paths,
   identities, secrets, or chain-of-thought.
 
+## Prime Agent minion bridge
+
+- Path: `plugins/prime-minion/`
+- Guide: `plugins/prime-minion/README.md`
+- Technical notes: `docs/technical/prime-minion.md`
+- Purpose: run Prime Agent's coding/tool loop as a Hermes minion while OpenAI
+  Codex OAuth stays inside a loopback-only Hermes relay.
+- Tools: `delegate_minion`, `minion_session_status`, and
+  `close_minion_session`.
+- Session modes: one-turn ephemeral execution or opaque resumable transcript
+  sessions across fresh Prime processes.
+- Route contract: current verified provider is `openai-codex`; every task names
+  model and effort, and Hermes accepts only matching effective-route readback.
+- Safety posture: synthetic per-invocation bearer, provider secrets stripped
+  from the child environment, pinned Prime source, canonical workspace binding,
+  exclusive session lease, interrupted-state recording without blind replay,
+  and main-agent final authority.
+- Runtime boundary: Prime is not an OS sandbox and retains the invoking user's
+  workspace permissions.
+
 ## Ops rules
 
 - Path: `ops-rules/context-canvas-awareness.md`
 - Purpose: make standing Hermes coding instructions aware of the two Context
   Canvas skills without duplicating their procedures or requiring Canvas for
   ordinary work.
+- Path: `ops-rules/prime-minion-pmo-routing.md`
+- Purpose: define main-agent authority, the verified Prime minion execution
+  lane, independent-review selection, explicit route readback, and fallback
+  behavior when PMO stance is active.
 - Path: `ops-rules/public-release-checklist.md`
 - Purpose: keep shared tools reusable and safe before a commit becomes public.
 - Path: `ops-rules/artifact-handoff-checklist.md`

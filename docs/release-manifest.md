@@ -10,8 +10,10 @@ Initial public bundle:
   Qdrant recall sidecars.
 - Optional complexity × Bayesian delegation calibrator with score, recommend,
   record, and report commands.
-- Context Canvas awareness plus release, artifact handoff, scheduled-agent, MCP
-  sidecar health, and runtime cutover checklists.
+- Prime Agent minion bridge with Hermes-managed OpenAI Codex credentials,
+  explicit route readback, and ephemeral or resumable transcript sessions.
+- Context Canvas awareness, Prime minion PMO routing, plus release, artifact
+  handoff, scheduled-agent, MCP sidecar health, and runtime cutover checklists.
 - Installation guide and GitHub Pages website.
 
 Kept outside this bundle:

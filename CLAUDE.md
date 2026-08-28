@@ -6,9 +6,11 @@ Guidance for AI agents working in this repository.
 
 A companion toolbox for [Hermes Agent](https://github.com/NousResearch/hermes-agent):
 Task Canvas evidence trails (`packages/context-canvas/`), archived Autopilot
-source (`plugins/`), local Qdrant recall helpers (`scripts/`), Hermes skills
-(`skills/`), and ops checklists (`ops-rules/`). Hermes Agent itself is never
-modified; every piece is optional, local-first, and fail-open.
+source, the Prime Agent minion bridge (`plugins/`), local Qdrant recall helpers
+(`scripts/`), Hermes skills (`skills/`), and ops checklists (`ops-rules/`).
+Hermes Agent itself is never modified; every piece is optional and documents
+its data path and failure posture. Local observability helpers may fail open;
+credential, route, ownership, and replay boundaries fail closed.
 
 ## Before touching README, docs/, or the website
 

@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-ff7ab6.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-6bbcff.svg)](pyproject.toml)
 [![MCP native](https://img.shields.io/badge/MCP-native-8e7dff.svg)](docs/install.md)
-[![Local first](https://img.shields.io/badge/data-local--first-68d8b2.svg)](docs/catalog.md)
+[![Operator controlled](https://img.shields.io/badge/operator-controlled-68d8b2.svg)](docs/catalog.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ffb36b.svg)](CONTRIBUTING.md)
 
 🌈 **[Visit the website](https://phenomenoner.github.io/hermes-agent-harness-plus/)** · 📦 [Install guide](docs/install.md) · 🧩 [Component catalog](docs/catalog.md) · 🐛 [Report a bug](https://github.com/phenomenoner/hermes-agent-harness-plus/issues)
@@ -33,7 +33,7 @@ Long agent sessions move *fast*. A tool call surfaces a golden clue, a test log 
 | 🔎 **Find it again** | Semantic recall over your skills & recent sessions — 100% local, on your own Qdrant | `qdrant_*` helpers |
 | 🎁 **Share cleanly** | Install notes, release routines, and reusable skills that travel well to other users | `skills/` + `ops-rules/` |
 
-Everything is **opt-in, local-first, and fail-open**. Take one piece or take them all — Hermes Agent itself is never modified. 🤝
+Everything is **opt-in and operator-controlled**. Local-state components keep their data on your machine; provider-backed components document what leaves it and fail closed at credential and route boundaries. Take one piece or take them all — Hermes Agent itself is never modified. 🤝
 
 ---
 
@@ -43,6 +43,7 @@ Everything is **opt-in, local-first, and fail-open**. Take one piece or take the
 hermes-agent-harness-plus/
 ├── 📦 packages/context-canvas/          Task Canvas library + CLI + MCP wrappers
 ├── 🗃️ plugins/context-canvas-autopilot/ Archived broad-capture experiment
+├── 🤖 plugins/prime-minion/              Prime Agent coding runtime with Hermes-owned Codex auth
 ├── 🔧 scripts/                          Qdrant & Canvas helpers: MCP, indexing, watchdogs
 ├── 📚 skills/                           Teach Hermes when & how to use the harness
 ├── ✅ ops-rules/                        Release / handoff / scheduled-job checklists
@@ -57,6 +58,7 @@ hermes-agent-harness-plus/
 | 🩺 **Recall watchdog** | Quiet when healthy, loud when broken — validates collections after refreshes, container starts, and restarts |
 | 📚 **Public skills** | `context-canvas-memory`, bounded `context-canvas-reflection`, and `qdrant-recall-sidecar` — drop-in guidance for any Hermes Agent user |
 | 🧭 **Delegation calibrator** | Optional complexity × Bayesian evidence for direct vs `luna_max`; [Baton](https://github.com/phenomenoner/baton-fanout-skill) remains the qualitative dispatch brake and validation authority |
+| 🤖 **Prime minion bridge** | Run Prime Agent's coding loop with Hermes-owned Codex OAuth, explicit route readback, and optional resumable transcripts across fresh processes |
 
 The former Autopilot broad-capture plugin remains as a source archive for
 historical safety replay. Its production runtime is forced off; it is not an
@@ -97,9 +99,9 @@ mcp_servers:
 
 ## 🧭 Design principles
 
-- 🏠 **Local-first.** Your notes, your sessions, your Qdrant on `127.0.0.1`. Nothing leaves home.
+- 🏠 **Local state by default.** Canvas, Qdrant, and minion transcripts stay on your machine; provider-backed calls follow the provider you explicitly configured.
 - 🪶 **Featherweight.** Optional pieces around Hermes Agent — zero changes to Hermes itself. Start with an explicit Canvas and add only the helpers you need.
-- 🛟 **Fail-open.** If a helper can't write, your session continues like nothing happened.
+- 🛟 **The right failure mode.** Observability helpers fail open; credential, route, ownership, and replay boundaries fail closed.
 - 🔍 **Separate map from evidence.** Concise Canvas nodes stay easy to scan while referenced files retain the verifiable details.
 - 🧾 **Evidence or it didn't happen.** Every finished note points to a ref you can verify: `node summary → evidence ref → original content`.
 
@@ -118,6 +120,9 @@ mcp_servers:
 | 🔎 [Qdrant recall internals](docs/technical/qdrant-recall.md) | Indexing, collections & health checks |
 | ✅ [Context Canvas awareness](ops-rules/context-canvas-awareness.md) | Standing selection rule for deliberate task maps and bounded trajectory reflection, without granting task authority |
 | 🧭 [Delegation calibrator](ops-rules/complexity-bayesian-delegation.md) | Optional complexity × Bayesian routing evidence; Baton remains the dispatch brake and the main agent owns final judgment |
+| 🤖 [Prime minion bridge](plugins/prime-minion/README.md) | Install, route, resume, inspect, and close Prime Agent minion sessions while Hermes keeps Codex credentials |
+| 🧠 [Prime minion internals](docs/technical/prime-minion.md) | Credential boundary, route readback, process lifecycle, and interrupted-session contract |
+| ✅ [Prime minion PMO routing](ops-rules/prime-minion-pmo-routing.md) | Standing authority, execution, review, and fallback rule for a PMO stance |
 | 🚀 [Release manifest](docs/release-manifest.md) | What ships in each bundle |
 
 ---

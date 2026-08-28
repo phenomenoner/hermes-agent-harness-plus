@@ -8,7 +8,11 @@ repository point to, import, interoperate with, or adapt documentation from the
 projects below:
 
 - Hermes Agent — https://github.com/NousResearch/hermes-agent — MIT License.
-  Tested locally against Hermes Agent v0.14.0, source commit `458a94e42`.
+  Tested locally against Hermes Agent v0.20.5 (2026.8.19).
+- Prime Agent — https://github.com/PrimeIntellect-ai/prime-agent — MIT License.
+  The optional Prime minion bridge installs, calls, and interoperates with Prime
+  Agent commit `bc0fa7606abb3b7af0f765319518d255e6ae553d` (CLI `0.8.1`); no Prime
+  source or runtime state is vendored in this repository.
 - MemPalace — https://github.com/MemPalace/mempalace — MIT License.
   Mentioned as an optional memory sidecar and documentation target.
 - Qdrant — https://github.com/qdrant/qdrant — Apache-2.0 License.
