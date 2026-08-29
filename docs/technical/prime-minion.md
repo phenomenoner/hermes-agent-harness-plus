@@ -2,123 +2,134 @@
 
 ## Purpose
 
-The Prime Agent Minion Bridge lets Hermes Agent use Prime Agent as a bounded coding/research runtime without handing Prime the provider credential or final task authority.
+The Prime Agent Minion Bridge lets Hermes Agent use Prime Agent as a bounded coding/research runtime without handing Prime the provider credential or final task authority. Version `0.3.0` is a standalone plugin: it does not patch Hermes core or add a daemon, database, system service, cgroup, network namespace, or machine-wide cleanup path.
 
-Hermes owns:
+Hermes owns task admission, explicit route selection, the session lease and manifest, provider credentials, integration, shared verification, and final claims. One short-lived invocation worker owns the relay, process-local embedded Prime RPC, all descendants, private tmpfs, cleanup, and terminal lifecycle verdict for exactly one invocation.
 
-- task admission and routing;
-- OpenAI Codex OAuth credentials;
-- integration, shared verification, and final claims;
-- session identity and lifecycle policy.
+The complete normative contract is [`prime-minion-invocation-worker-spec.md`](prime-minion-invocation-worker-spec.md).
 
-Prime owns:
-
-- the coding-agent loop;
-- tool-call parsing and IPython execution;
-- workspace interaction within the invoking user's permissions;
-- native JSONL transcript persistence.
-
-## Invocation flow
+## Invocation topology
 
 ```text
-Hermes delegate_minion
-  -> validate workspace, route, Prime pin, and session ownership
-  -> start a loopback-only Codex Responses relay
-  -> start one isolated Prime RPC process
-  -> Prime streams inference through the relay
-  -> Prime performs bounded workspace/tool work
-  -> Hermes reads back the effective route and final state
-  -> stop the Prime and relay process groups
+Hermes parent H
+  ├─ persistent session manifest + exact mutation lease
+  ├─ control writer CW (sole writer)
+  ├─ bounded request/result/evidence drains
+  └─ direct Python launcher
+       └─ unshare U: private user + mount + PID namespaces
+            └─ worker W: PID namespace PID 1
+                 ├─ bootstrap-bound anchor identity receipt
+                 ├─ fixed-anchor FD A (mount target identity only)
+                 ├─ worker-created 64 MiB tmpfs
+                 ├─ verified post-mount runtime FD R
+                 ├─ nested-user loopback Responses relay
+                 └─ nested-user embedded Prime RPC process
+                      └─ all setsid/double-fork descendants are adopted by W
 ```
 
-The relay translates credential ownership, not agent ownership. Prime still decides when to call its tools; Hermes still decides whether the resulting work is accepted.
+The launcher sets a Linux parent-death signal before executing `unshare` and rechecks its direct parent. This only protects the short window before W installs its own handlers. Hermes-parent loss is authoritatively represented by EOF on the invocation control pipe, not by a PPID comparison.
 
-## Credential containment
+W is namespace PID 1 and the only lifecycle authority. It handles TERM/INT/HUP, reaps adopted orphans, interrupts an active relay/RPC operation, escalates TERM to KILL within fixed budgets, drains child output, detaches its exact tmpfs, closes descriptors, and emits one bounded terminal result.
 
-The relay process resolves an authenticated OpenAI Codex credential from the Hermes credential pool. The child receives only:
+## Mount and path custody
 
-- a loopback base URL;
-- a freshly generated synthetic bearer; and
-- a sanitized environment with provider secret variables removed.
+Bootstrap creates one fixed owner-only `0700` mount anchor and a `0600` identity receipt as installation structure. The receipt binds the canonical anchor path plus the exact device/inode/uid/mode of its `0700` parent and anchor. An invocation never creates, chmods, recursively deletes, or replaces any part of that route; production rejects caller-selected anchor paths.
 
-The parent hands the same fresh bearer to the relay through the relay's anonymous stdin pipe and to the child through the sanitized child environment. The relay requires an exact constant-time bearer match before resolving the Hermes credential, then replaces the synthetic bearer and forwards only the supported Codex Responses path. It binds to `127.0.0.1` and supports HTTP/SSE rather than WebSocket.
+1. Hermes opens the fixed parent and receipt with `O_NOFOLLOW`, then requires both current parent and anchor identities to match the bootstrap receipt before any mount, child creation, or worker spawn.
+2. Hermes opens the recognized anchor as FD `A`, verifies `fstat(A)` still matches the canonical pathname, and binds that identity into the request.
+3. W verifies the same anchor after namespace handoff and mounts a private `size=64m,mode=0700,nosuid,nodev,noexec` tmpfs through the descriptor target.
+4. W opens the mounted path as post-mount FD `R` and verifies that `R` belongs to the exact newly created mount ID.
+5. Private agent-home and tmp paths use only `R`-derived descriptor paths. `A` is never used for private data because a pre-mount descriptor points below an overmount.
+6. Relay and Prime receive only an `R` duplicate plus their stdio. They do not receive `A`, the control reader, result/evidence writers, or unrelated lifecycle descriptors.
+7. Cleanup detaches through `R`, checks that the exact mount ID disappeared, then proves the fixed outer anchor is empty when its original identity still exists.
 
-Neither the real OAuth credential nor the synthetic bearer is written to the durable minion session manifest.
+A missing receipt, replaced parent or anchor, symlink, mode mismatch, or unrecognized current-live state fails closed without changing content/mode and before worker spawn. Path replacement after `R` acquisition cannot transpose custody to a foreign subtree. Replacement after parent admission but before W acquires `R` fails closed.
 
-## Route contract
+## Bounded protocol and evidence
 
-Every invocation declares:
+Hermes sends one exact-key, length-prefixed JSON request. Fake relay/Prime commands are not part of that request schema; test fixtures are available only through an internal launcher-only seam.
+
+W emits:
+
+- bounded framed lifecycle evidence (`handlers`, `mounted`, `relay_ready`, `prime_running`, `result_ready`, `cleanup_complete`);
+- a bounded terminal JSON result only after cleanup; and
+- bounded diagnostic tails on stderr.
+
+Hermes drains result and diagnostics/evidence concurrently. It rejects malformed, oversized, duplicate/trailing, or out-of-order frames. Cancellation is shielded until the invocation finalizer settles; repeated cancellation sends the intentional-stop marker at most once. If W/U exceeds the full worker cleanup budget plus parent margin, Hermes terminates only the exact captured launcher identity and preserves cleanup failure instead of laundering it into cancellation or success.
+
+A `completed` result is accepted only after all of these observations hold:
+
+- W returned valid ordered evidence and a valid bounded result;
+- W and U exited and their exact process identities disappeared;
+- the task-owned relay listener is closed;
+- namespace descendants are gone and were reaped;
+- the exact tmpfs mount is absent;
+- invocation protocol descriptors are closed; and
+- the fixed-anchor baseline is restored.
+
+## Embedded Prime RPC
+
+The worker starts Prime process-locally with:
 
 ```text
-provider + model + reasoning_effort
+node --import tsx embedded_rpc.mjs --mode rpc ...
 ```
 
-The current provider is `openai-codex`; the model/effort matrix is defined in the plugin schema. Hermes asks Prime for its effective route before and after task execution. A mismatch fails closed instead of silently accepting a fallback.
+Using Node as the launcher preserves the inherited runtime descriptor. The `tsx` CLI is intentionally not the launcher because it closes or reuses non-stdio descriptors before Prime starts. `embedded_rpc.mjs` loads the pinned Prime `main.ts` and injects only `prime_extension.mjs` through the explicit extension-factory API.
 
-## Ephemeral and resumable modes
+The worker uses Prime RPC for initial route readback, explicit model/thinking updates when needed, effective-route readback, prompt/abort, event consumption, and final route readback. Credential-free verification uses the same embedded RPC and worker topology with an internal `route_probe` operation that never sends `prompt`. In resumable probe mode it uses Prime's official no-provider `set_session_name` RPC to create a real transcript before a second process resumes it.
 
-### Ephemeral
+## Credential boundary
 
-- Prime starts with `--no-session`.
-- The process and relay exit after one invocation.
-- No Prime transcript is retained by the plugin.
+The nested relay resolves authenticated OpenAI Codex credentials from Hermes and binds an ephemeral loopback-only listener. Prime receives only:
 
-### Resumable transcript
+- the loopback relay URL;
+- a fresh synthetic bearer;
+- its private `R`-derived home/tmp paths; and
+- a role-specific environment allowlist.
 
-- Hermes creates an opaque `minion_<uuid>` identity.
-- The internal manifest binds the canonical workspace and pinned Prime commit.
-- Prime persists native JSONL under the session directory.
-- A later invocation starts a new relay and a new Prime process with `--resume <internal-file>`.
-- The caller supplies only the opaque session ID, never a filesystem path.
+Real provider credential values are not sent in Prime argv, RPC request, environment, or inherited descriptors. The relay may receive the minimum Hermes auth-home and TLS paths it needs; Prime does not. The relay validates the synthetic bearer before replacing it with the Hermes-owned credential and supports only the approved HTTP/SSE Responses path.
 
-Resume preserves transcript context and facts already written to disk. It does not preserve a kernel, subprocess, shell environment, or in-flight tool call.
+This is credential containment and lifecycle containment, not an operating-system sandbox. Prime retains the invoking user's workspace authority. Use a bounded canonical workdir and normal Hermes approval policy.
 
-## Session lifecycle
+## Resumable sessions and close fence
+
+Hermes keeps a separate owner-only manifest and exact session lease. A lease owner is bound to PID, `/proc/<pid>/stat` start time, boot ID, and a random lease token; bare PID liveness is insufficient.
 
 ```text
-IDLE -> RUNNING -> IDLE
-                 -> INTERRUPTED
+manifest IDLE -> turn RUNNING -> turn COMPLETED + manifest IDLE
+                           \-> turn INTERRUPTED + manifest INTERRUPTED
 IDLE/INTERRUPTED -> CLOSED
 ```
 
-The manifest is atomically replaced and protected by an exclusive local lease. Resume revalidates:
+A turn records its exact lease owner. If a process dies while a turn remains `RUNNING`, the next exact mutation lease may close-fence it to `INTERRUPTED` only after proving the prior owner identity is stale. A live or mismatched prior owner is never silently repaired. `COMPLETED` is persisted only after worker terminal acceptance; an uncertain prompt or tool effect is never replayed automatically.
 
-- session ID format;
-- session state;
-- canonical workspace;
-- pinned Prime source commit;
-- transcript location and ownership boundary; and
-- explicit route readback.
+Public status and close results expose opaque session identity and sanitized state, never the internal transcript path or raw failure details.
 
-An uncertain process loss records `INTERRUPTED`. The bridge does not replay the prior prompt or tool call automatically because a workspace mutation may already have occurred.
+## Host capability profile
 
-## Process cleanup
+The required profile is `linux-user-mount-pid-v1`. Before provider work, the standalone probe checks:
 
-Timeout and cancellation attempt a Prime RPC abort, then terminate the Prime and relay process groups. Successful completion also stops both process groups before returning. Verification should check both the terminal tool result and the absence of orphan processes.
+- Linux user/mount/PID namespace construction and private propagation;
+- worker PID 1 with a private `/proc`;
+- descriptor-targeted tmpfs mount, exact mount ID, `0700` mode, and bounded size;
+- post-mount `R` access and descriptor-targeted detach;
+- nested same-user read access;
+- absence of leaked `A`/pipe identities; and
+- denial of nested mount administration over the outer mount namespace.
 
-## Host compatibility boundary
-
-The plugin is a standalone Hermes extension and does not patch Hermes core. It relies on these host surfaces:
-
-- plugin tool registration with `is_async=True` for coroutine handlers;
-- the Hermes credential pool implementation;
-- Hermes profile state resolution; and
-- current OpenAI Codex request headers and endpoint behavior.
-
-A future change to any of those surfaces requires focused compatibility testing. Import/registration checks alone are insufficient: at least one actual registry dispatch must cross the async adapter.
-
-## Security boundary
-
-Prime is not an operating-system sandbox. The runtime has the invoking user's permissions in the selected workspace. Use a bounded canonical workdir and the normal Hermes approval policy. Credentials stay on the Hermes side, but filesystem authority still needs ordinary operator discipline.
-
-Prime starts with `--no-extensions`, so its vulnerable project-local extension discovery path is disabled and only the bridge's explicit CLI extension is loaded. The pinned upstream dependency tree still has npm advisories. In particular, `extract-zip` is used by Prime's managed-tool archive installer and npm currently reports `GHSA-jmr9-qjv8-65gv` with no fix. Normal bridge RPC startup does not call that installer, and bootstrap does not rewrite the upstream lockfile. Treat this as a residual supply-chain boundary: inspect current audit output, use trusted workspaces or external OS isolation, and requalify any new Prime pin.
+Missing or denied primitives return a stable unsupported prerequisite. There is no process-group-only fallback.
 
 ## Verification layers
 
-1. Focused Python tests for relay authentication, route validation, session leases, interrupted-state handling, and sanitized status.
-2. `node --check` for the Prime extension.
-3. Credential-free Prime RPC route matrix.
-4. Credential-free two-process session identity probe.
-5. Optional authenticated smoke for tool calling.
-6. Optional authenticated two-turn resume smoke across Prime process exit.
-7. Real Hermes gateway registry dispatch for `delegate_minion`, status, close, and closed-state readback.
+1. T0: Ruff, compileall, Node syntax, manifest/import/registration through `hermes plugins doctor`.
+2. T1/T2: framed IPC, RPC flooding, environment/FD allowlists, exact lease identity, stale-RUNNING close fence, cancellation, malformed result, and strict request schema.
+3. T3: real private namespaces, PID1 reaping of detached TERM-ignoring descendants, anchor replacement, parent death before handlers and at lifecycle checkpoints, repeated and parallel invocation closure.
+4. P02: pinned embedded Prime RPC route/readback matrix for three models × six efforts with no prompt/provider request.
+5. P03: credential-free two-process Prime transcript resume through two complete worker lifecycles.
+6. Optional authenticated source-candidate smoke: one bounded tool call and two-turn resume.
+7. `FULL` product acceptance after hash-bound source closure: exact-byte clean install, gateway registry pickup, one authenticated bounded delegation, one authenticated resumable/RLM continuation, effective-route readback, and task-owned residue absence.
+
+These layers support the product claim; they are not a host-security certification. Existing namespace, tmpfs, IPC, and anchor mechanisms are bounded lifecycle scope guards. Do not add broader isolation, persistence, soak, or review machinery unless a real product-path failure requires it.
+
+The pinned Prime source is `0.8.1` at `bc0fa7606abb3b7af0f765319518d255e6ae553d`. Bootstrap preserves its lockfile and reports npm audit results; it does not run `npm audit fix` or silently move the pin. Namespace containment does not mitigate vulnerabilities in Prime or its dependency tree.

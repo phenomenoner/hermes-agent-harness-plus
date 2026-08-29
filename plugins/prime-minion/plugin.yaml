@@ -1,6 +1,6 @@
 name: prime-minion
-version: 0.2.0
-description: Run ephemeral or resumable Prime Agent minions through a Hermes-managed Codex bridge
+version: 0.3.0
+description: Run lifecycle-contained ephemeral or resumable Prime Agent minions through a Hermes-managed Codex bridge
 manifest_version: 2
 api_version: 1
 license: MIT

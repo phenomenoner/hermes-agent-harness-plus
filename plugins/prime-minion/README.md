@@ -10,7 +10,8 @@ Prime owns the coding-agent loop, IPython tools, and workspace interaction. Herm
 - `minion_session_status` — inspect sanitized durable session state.
 - `close_minion_session` — close a session without deleting its transcript.
 - Explicit per-turn `provider`, `model`, and `reasoning_effort` with effective-route readback.
-- Fresh Prime process, loopback relay, and synthetic bearer for every invocation.
+- One fresh private user/mount/PID-namespace worker for every invocation. The worker is namespace PID 1 and owns the loopback relay, process-local embedded Prime RPC, descendants, tmpfs, cleanup, and terminal verdict.
+- A bootstrap-provisioned fixed owner-only mount anchor with an exact parent/anchor identity receipt plus a verified post-mount runtime descriptor; per-invocation private state lives only on the worker-owned 64 MiB tmpfs. Normal admission never creates or chmods the anchor route, and production does not accept a caller-selected anchor path.
 - A pinned Prime runtime installed outside Git with a reproducible bootstrap script.
 
 Current verified route matrix:
@@ -20,7 +21,7 @@ Current verified route matrix:
 - Effort: `none`, `low`, `medium`, `high`, `xhigh`, `max`
 - Prime Agent: commit `bc0fa7606abb3b7af0f765319518d255e6ae553d`, CLI `0.8.1`
 
-This is an OpenAI Codex vertical slice, not a universal provider gateway.
+This is an OpenAI Codex vertical slice, not a universal provider gateway. In this plugin, **FULL** means the clean-installed route works as a Hermes subagent alternative and Prime's resumable/RLM capability works through that route with bounded cleanup. It is not a host-security certification.
 
 ## Install
 
@@ -28,7 +29,7 @@ Prerequisites:
 
 - a working Hermes Agent installation with standalone plugin support;
 - an authenticated `openai-codex` credential in Hermes;
-- Git, Node.js, and npm;
+- Git, Node.js, npm, `unshare`, `mount`, and `umount` on Linux/WSL;
 - `aiohttp>=3.9,<4` in the Python environment that runs `hermes`.
 
 From a Harness Plus clone:
@@ -105,7 +106,7 @@ Resume by sending a new explicit task with the same `session_id`:
 }
 ```
 
-Each turn still starts a new relay and a new Prime process. Resume restores the transcript and disk workspace; it does not resurrect a process or kernel.
+Each turn starts a new PID1 worker, relay, and embedded Prime RPC process. Resume restores the transcript and disk workspace; it does not resurrect a process or kernel.
 
 ## Durable contract
 
@@ -146,11 +147,14 @@ Not preserved:
 
 ```text
 Hermes tool call
-  -> loopback-only Responses relay
-  -> one Prime RPC process with a synthetic bearer
+  -> direct launcher and private user/mount/PID namespaces
+  -> namespace PID1 invocation worker and private tmpfs
+  -> nested loopback-only Responses relay
+  -> nested process-local embedded Prime RPC with a synthetic bearer
   -> Hermes credential pool and Codex endpoint
   -> Prime agent/tool loop
-  -> compact result to Hermes
+  -> worker reaps every descendant, closes the listener, detaches tmpfs
+  -> bounded terminal result to Hermes
 ```
 
 - The relay binds `127.0.0.1` on an ephemeral port.
@@ -161,6 +165,8 @@ Hermes tool call
 - Prime starts with `--no-extensions`; only this package's explicit `prime_extension.mjs` is loaded.
 
 Prime remains an execution runtime, not an operating-system sandbox. It runs with the invoking user's workspace permissions.
+
+The worker uses private user, mount, and PID namespaces for lifecycle containment only. It does not create a network namespace, daemon, cgroup, systemd/s6 service, database, or machine-wide cleanup path. If the required namespace and mount primitives are unavailable, admission fails closed rather than falling back to process-group-only cleanup.
 
 ### Pinned-runtime supply-chain note
 
@@ -181,9 +187,14 @@ Credential-free checks:
 
 ```bash
 python -m pytest -q plugins/prime-minion/tests
+python plugins/prime-minion/scripts/bootstrap_runtime.py --verify-only
 python plugins/prime-minion/scripts/probe_rpc.py --matrix
 python plugins/prime-minion/scripts/probe_resume_rpc.py
+python -m ruff check plugins/prime-minion --exclude plugins/prime-minion/.runtime
+python -m compileall -q plugins/prime-minion -x 'plugins/prime-minion/.runtime'
+node --check plugins/prime-minion/embedded_rpc.mjs
 node --check plugins/prime-minion/prime_extension.mjs
+hermes plugins doctor --ci plugins/prime-minion
 ```
 
 Provider-backed smoke checks are opt-in because they consume an authenticated Codex call:
