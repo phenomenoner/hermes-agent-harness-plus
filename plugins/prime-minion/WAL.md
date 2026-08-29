@@ -336,3 +336,27 @@ Smallest repair and discriminating evidence:
 
 Current gate:
 - Rebind a successor exact tree and perform the required narrow identity-bound re-review of the installer/bootstrap path and affected regression. No commit, push, clean install, provider call, PR promotion, merge, or `FULL` claim is authorized before that closure.
+
+## 2026-08-29 — source and live release-candidate closure PASS
+
+Review and source publication:
+- Successor tree `5f89024e8f611fb1308804fa74d8e29e7a8c5b84` received narrow identity-bound Terra/high `PASS`; the no-uv fresh-install blocker is `CLOSED`, no new material finding was identified, and reviewer modified 0 files.
+- Reviewed commit `7c2ac7db2b08f9e19a180c888ad363e29216bc6f` has that exact tree. Local, remote branch, and PR head readback matched; GitHub CI `test` completed `SUCCESS`.
+
+Clean install and bootstrap:
+- A first whole-repository install was correctly blocked as `DANGEROUS` because the scanner evaluated unrelated repository instructions and specifications; `--force` did not bypass it and the installed target was unchanged.
+- The official monorepo-subdirectory identifier limited installation to `plugins/prime-minion`. Its `CAUTION` findings were the reviewed `/proc` namespace and subprocess product behavior, so the trusted exact-SHA install used the CLI's explicit `--force` confirmation without disabling scanning.
+- Exact subdirectory install produced plugin `0.3.0`; installed source parity was 23/23 with no missing, mismatched, or extra source files.
+- Fresh bootstrap installed Prime `0.8.1` at `bc0fa7606abb3b7af0f765319518d255e6ae553d`, provisioned the fixed kernel venv, and passed Prime's own runtime/default-package verification plus lifecycle profile `linux-user-mount-pid-v1`.
+- The four inherited npm audit advisories remain two moderate and two high; no automatic dependency rewrite was authorized.
+
+Authenticated live acceptance without another gateway restart:
+- Public handler/schema bytes were unchanged; the existing registry handler spawned the newly installed worker path directly.
+- Real ephemeral delegation sent the provider request with route/effective-route `openai-codex / gpt-5.6-luna / low`, used `ipython` once with `is_error=false`, and returned exact result `PRIME_IPYTHON_ACCEPTED` in 8.452 seconds.
+- Controlled timeout used one IPython call sleeping 120 seconds under a 30-second invocation deadline. The public result was `status=error / invocation timed out`; shutdown diagnostics contained expected closing-transport/EPIPE noise.
+- Immediate residue readback after timeout: task-owned worker/launcher/Prime/RLM processes 0, anchor mounts 0, anchor entries 0.
+
+Publication gate:
+- Executable, resumable/RLM, install, live success, and live error-cleanup gates are PASS for the minimum product boundary.
+- This WAL addition is metadata-only. Require its own CI, exact final-head install/source readback, PR merge, and GitHub `main` exact commit/content readback before declaring Prime Minion `0.3.0 FULL`.
+- AAR `0.6.0a1` remains independently hash-bound `PAUSED`; Prime closure does not amend its dispatcher-to-store close-fence P0.
