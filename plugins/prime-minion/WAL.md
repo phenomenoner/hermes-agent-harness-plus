@@ -260,3 +260,17 @@ Final bounded repair:
 
 Next safe action:
 - Run one final plugin/T0 gate, freeze a new exact tree, and request a last identity-bound no-new-scope F01 closure. PASS may proceed to commit; BLOCKED stops before install.
+
+## 2026-08-29 — source closure PASS; host-installer compatibility repair
+
+Source closure:
+- Exact tree `ee9453d4a9b8261eb4f3a0717815068f784da7c3` received terminal narrow Terra/high `PASS`: F01 direct/indirect closed, F02 closed, public oracles discriminating, and the minimum `FULL` boundary proportionate.
+- Commit `30b47f507d1df203304d4d7f23531dfa9f2bf38b` has that exact tree and was pushed with matching remote commit/tree/parent readback.
+
+Fresh-install observation:
+- Exact-SHA CLI install failed before replacement because the current host installer supports manifest version 1 while the candidate declared version 2.
+- Atomic failure readback preserved the old installed `0.2.0` projection, its prior HEAD/dirty state, and absent install metadata.
+- The v2-only dependency/config metadata was not consumed by this plugin and was not required for the three-tool product route. The manifest is reduced to the honest v1 surface supported by the host installer; no Hermes upgrade, manual-copy bypass, runtime change, or additional product claim is introduced.
+
+Next safe action:
+- Verify manifest/T0 and plugin tests, commit/push the metadata-only compatibility successor, then retry exact-SHA clean install. The earlier executable source review remains bound to unchanged executable bytes; installation is the discriminator for this packaging change.
