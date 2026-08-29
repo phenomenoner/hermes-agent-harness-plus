@@ -17,6 +17,10 @@ RUNTIME = ROOT / ".runtime" / "prime-agent"
 REPOSITORY = "https://github.com/PrimeIntellect-ai/prime-agent.git"
 COMMIT = "bc0fa7606abb3b7af0f765319518d255e6ae553d"
 EXPECTED_VERSION = "0.8.1"
+KERNEL_BOOTSTRAP_SCRIPT = (
+    'import { ensureKernelPython } from "./packages/coding-agent/src/core/kernel/bootstrap.ts";'
+    "process.stdout.write(await ensureKernelPython());"
+)
 
 
 def ensure_runtime_parent() -> Path:
@@ -90,10 +94,17 @@ def verify_lifecycle_profile() -> None:
     print(f"verified lifecycle profile {receipt['profile']}")
 
 
-def run(command: list[str], cwd: Path | None = None, capture: bool = False) -> str:
+def run(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    capture: bool = False,
+    env: dict[str, str] | None = None,
+) -> str:
     completed = subprocess.run(
         command,
         cwd=cwd,
+        env=env,
         text=True,
         capture_output=capture,
         check=False,
@@ -103,6 +114,72 @@ def run(command: list[str], cwd: Path | None = None, capture: bool = False) -> s
         detail = (completed.stderr or completed.stdout or "")[-3000:]
         raise SystemExit(f"command failed ({completed.returncode}): {' '.join(command)}\n{detail}")
     return (completed.stdout.strip() or completed.stderr.strip()) if capture else ""
+
+
+def _kernel_environment(*, verify_only: bool) -> dict[str, str]:
+    allowed = {
+        "ALL_PROXY",
+        "HOME",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "LANG",
+        "NO_PROXY",
+        "PATH",
+        "REQUESTS_CA_BUNDLE",
+        "SSL_CERT_DIR",
+        "SSL_CERT_FILE",
+        "TMPDIR",
+        "UV_CACHE_DIR",
+        "XDG_CACHE_HOME",
+        "XDG_DATA_HOME",
+    }
+    env = {key: value for key, value in os.environ.items() if key in allowed or key.startswith("LC_")}
+    env.update({"DO_NOT_TRACK": "1", "PRIME_AGENT_TELEMETRY": "0"})
+    kernel_venv = RUNTIME.parent / "kernel-venv"
+    if verify_only:
+        env["PRIME_AGENT_KERNEL_PYTHON"] = str(kernel_venv / "bin" / "python")
+    else:
+        env["PRIME_AGENT_KERNEL_VENV"] = str(kernel_venv)
+        env["PRIME_AGENT_INSTALL_UV"] = "1"
+    return env
+
+
+def _ensure_kernel_command() -> list[str]:
+    return [
+        "node",
+        "--import",
+        "tsx",
+        "--input-type=module",
+        "--eval",
+        KERNEL_BOOTSTRAP_SCRIPT,
+    ]
+
+
+def bootstrap_kernel_runtime() -> Path:
+    expected = RUNTIME.parent / "kernel-venv" / "bin" / "python"
+    observed = run(
+        _ensure_kernel_command(),
+        cwd=RUNTIME,
+        capture=True,
+        env=_kernel_environment(verify_only=False),
+    )
+    if observed != str(expected):
+        raise SystemExit(f"Prime kernel bootstrap returned an unexpected Python path: {observed}")
+    return expected
+
+
+def verify_kernel_runtime() -> None:
+    expected = RUNTIME.parent / "kernel-venv" / "bin" / "python"
+    if not expected.is_file() or not os.access(expected, os.X_OK):
+        raise SystemExit(f"Prime kernel runtime is missing or not executable: {expected}")
+    observed = run(
+        _ensure_kernel_command(),
+        cwd=RUNTIME,
+        capture=True,
+        env=_kernel_environment(verify_only=True),
+    )
+    if observed != str(expected):
+        raise SystemExit(f"Prime kernel verification returned an unexpected Python path: {observed}")
 
 
 def verify() -> None:
@@ -117,6 +194,7 @@ def verify() -> None:
     version = run([str(RUNTIME / "prime-agent.sh"), "--version"], cwd=RUNTIME, capture=True)
     if version != EXPECTED_VERSION:
         raise SystemExit(f"Prime runtime version drift: expected {EXPECTED_VERSION}, observed {version}")
+    verify_kernel_runtime()
     verify_lifecycle_profile()
     print(f"verified Prime Agent {version} at {head}")
 
@@ -137,6 +215,7 @@ def install() -> None:
             )
     provision_lifecycle_anchor()
     run(["npm", "ci"], cwd=RUNTIME)
+    bootstrap_kernel_runtime()
     verify()
 
 

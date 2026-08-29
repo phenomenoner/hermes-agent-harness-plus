@@ -297,3 +297,42 @@ CI RED and repair:
 Next safe action:
 - Run the final repository suite, commit/push the test/WAL-only CI successor, and require green PR CI.
 - After the external-shell gateway restart, run the minimum authenticated registry delegation plus two-turn resumable/RLM continuation and exact residue readback. Only then mark the PR ready and merge.
+
+## 2026-08-29 — live registry continuation PASS; IPython bootstrap gap repaired
+
+Live acceptance evidence before this repair:
+- The gateway selected Prime through the public registry and returned the exact bounded ephemeral result.
+- A real resumable session completed two authenticated turns; turn 2 recovered the marker stored only in turn 1, then the session was explicitly closed and read back as `CLOSED` at generation 2.
+- The first real Prime IPython tool use failed before command execution. Prime attempted first-use `uv python install 3.11` inside the invocation-private HOME, so text delegation/resume were green but RLM/tool execution was not yet acceptable.
+
+Root cause and bounded repair:
+- Bootstrap installed and pinned the Prime Node runtime but did not provision Prime's Python kernel environment.
+- Prime's existing `PRIME_AGENT_KERNEL_PYTHON` contract is used; no daemon, service, database, global environment, process-group fallback, or namespace architecture change is introduced.
+- Install now calls Prime's own `ensureKernelPython()` once with a fixed sibling owner-controlled `kernel-venv`; verification requires the exact executable path.
+- Production worker ignores caller overrides, fails closed when that fixed executable is missing, and passes only the fixed path to embedded Prime.
+
+Discriminating evidence:
+- RED: bootstrap helper absent; production reached the child-spawn seam without a fixed kernel runtime.
+- GREEN: both focused tests passed independently.
+- Affected invocation-worker suite: 37/37 PASS.
+- Ruff, compileall, and diff hygiene: PASS.
+
+Remaining gate:
+- Freeze the repair bytes, perform one blind read-only delta review, require complete Prime plugin/CI verification, clean-install the exact successor, and rerun a real IPython/RLM call plus completion/error residue readback. `FULL`, PR merge, and GitHub `main` remain closed until those gates pass.
+- AAR `0.6.0a1` remains independently hash-bound `PAUSED`; this repair does not alter that verdict.
+
+## 2026-08-29 — kernel bootstrap delta review BLOCKED; no-uv repair applied
+
+Identity-bound review:
+- Exact staged tree `73ba62e57ac5b3eda8903244a9de4c7ad27e7e89` received a batch-complete independent Terra/high `BLOCKED` verdict; reviewer modified 0 files.
+- Sole material finding: the documented fresh-install prerequisites did not include `uv`, while Prime 0.8.1 refuses non-interactive first-install kernel provisioning without either an existing `uv` or `PRIME_AGENT_INSTALL_UV=1`.
+- No other material finding was identified; fixed worker path, caller-override exclusion, and missing/non-executable fail-closed behavior were source-supported.
+
+Smallest repair and discriminating evidence:
+- The installer-only kernel environment now sets `PRIME_AGENT_INSTALL_UV=1`; verification and invocation runtime environments do not receive it.
+- The bootstrap regression supplies a PATH with no `uv` and requires the fixed venv plus install flag. RED failed with missing key; GREEN passed after the one-line production repair.
+- Ruff, compileall, Node syntax, Plugin Doctor, and diff hygiene: PASS.
+- First post-repair full Prime suite had one cancellation-timing failure outside the repair seam; mount absence and child reaping were true, task residue readback was zero, and the isolated test passed on the single permitted retry. The final complete Prime suite passed 50/50. No repeated same-cause retry was used.
+
+Current gate:
+- Rebind a successor exact tree and perform the required narrow identity-bound re-review of the installer/bootstrap path and affected regression. No commit, push, clean install, provider call, PR promotion, merge, or `FULL` claim is authorized before that closure.

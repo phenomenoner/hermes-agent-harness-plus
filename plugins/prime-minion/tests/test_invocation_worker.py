@@ -447,6 +447,40 @@ def test_bootstrap_rejects_existing_foreign_parent_without_mutation(
     assert sorted(path.name for path in parent.iterdir()) == ["foreign-sentinel"]
 
 
+def test_bootstrap_kernel_runtime_uses_fixed_sibling_venv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bootstrap = load_bootstrap_module()
+    runtime = tmp_path / ".runtime" / "prime-agent"
+    runtime.mkdir(parents=True)
+    expected_python = runtime.parent / "kernel-venv" / "bin" / "python"
+    calls: list[tuple[list[str], Path | None, bool, dict[str, str] | None]] = []
+
+    def fake_run(command, *, cwd=None, capture=False, env=None):
+        calls.append((list(command), cwd, capture, env))
+        return str(expected_python)
+
+    monkeypatch.setattr(bootstrap, "RUNTIME", runtime)
+    monkeypatch.setattr(bootstrap, "run", fake_run)
+    no_uv_bin = tmp_path / "no-uv-bin"
+    no_uv_bin.mkdir()
+    monkeypatch.setenv("PATH", str(no_uv_bin))
+    monkeypatch.setenv("PRIME_AGENT_KERNEL_PYTHON", "/caller/override/must-not-cross")
+
+    assert bootstrap.bootstrap_kernel_runtime() == expected_python
+    assert len(calls) == 1
+    command, cwd, capture, env = calls[0]
+    assert command[:4] == ["node", "--import", "tsx", "--input-type=module"]
+    assert "ensureKernelPython" in command[-1]
+    assert cwd == runtime
+    assert capture is True
+    assert env is not None
+    assert env["PATH"] == str(no_uv_bin)
+    assert env["PRIME_AGENT_KERNEL_VENV"] == str(runtime.parent / "kernel-venv")
+    assert env["PRIME_AGENT_INSTALL_UV"] == "1"
+    assert "PRIME_AGENT_KERNEL_PYTHON" not in env
+
+
 def test_stale_lease_requires_pid_start_time_and_boot_id(tmp_path: Path, monkeypatch) -> None:
     sessions = load_module("sessions")
     monkeypatch.setenv("PRIME_MINION_STATE_DIR", str(tmp_path / "state"))
@@ -592,6 +626,51 @@ def test_worker_relay_and_prime_environments_are_role_allowlists(monkeypatch: py
         assert "UNEXPECTED_TOKEN" not in env
         assert "SOME_KEY" not in env
         assert "OPENAI_API_KEY" not in env
+
+
+def test_production_prime_requires_and_receives_fixed_kernel_python(tmp_path: Path, monkeypatch) -> None:
+    worker_module = load_module("invocation_worker")
+    runtime = tmp_path / ".runtime" / "prime-agent"
+    runtime.mkdir(parents=True)
+    fixed_python = runtime.parent / "kernel-venv" / "bin" / "python"
+    invocation = worker_module.InvocationWorker(control_fd=-1, anchor_fd=-1)
+    invocation.runtime_fd = 7
+    started: list[dict[str, object]] = []
+
+    async def fake_start_child(**kwargs):
+        started.append(kwargs)
+        return types.SimpleNamespace(process=types.SimpleNamespace(stdout=asyncio.StreamReader()))
+
+    invocation._start_child = fake_start_child
+    invocation._prime_command = lambda _request: ["node", "embedded_rpc.mjs"]
+    monkeypatch.setattr(worker_module, "_PrimeRPC", lambda _process: object())
+    request = {
+        "runtime": str(runtime),
+        "workdir": str(tmp_path),
+        "synthetic_bearer": "synthetic",
+        "route": {
+            "provider": "openai-codex",
+            "model": "gpt-5.6-luna",
+            "reasoning_effort": "low",
+        },
+        "session_mode": "ephemeral",
+    }
+
+    with pytest.raises(worker_module.UnsupportedLifecycleHost, match="kernel runtime is missing"):
+        asyncio.run(invocation._start_prime(request, "http://127.0.0.1:32123/v1"))
+    assert started == []
+
+    fixed_python.parent.mkdir(parents=True)
+    fixed_python.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    fixed_python.chmod(0o755)
+    monkeypatch.setenv("PRIME_AGENT_KERNEL_PYTHON", "/caller/override/must-not-cross")
+    asyncio.run(invocation._start_prime(request, "http://127.0.0.1:32123/v1"))
+
+    assert len(started) == 1
+    prime_env = started[0]["env"]
+    assert isinstance(prime_env, dict)
+    assert prime_env["PRIME_AGENT_KERNEL_PYTHON"] == str(fixed_python)
+    assert "PRIME_AGENT_KERNEL_VENV" not in prime_env
 
 
 @pytest.mark.usefixtures("lifecycle_capability")

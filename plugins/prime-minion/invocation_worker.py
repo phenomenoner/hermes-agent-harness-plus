@@ -1425,6 +1425,13 @@ class InvocationWorker:
     async def _start_prime(self, request: Mapping[str, Any], proxy_url: str) -> _Child:
         route = request["route"]
         env = self._allowlisted_environment(relay=False)
+        if self.prime_command is None:
+            kernel_python = Path(str(request["runtime"])).parent / "kernel-venv" / "bin" / "python"
+            if not kernel_python.is_file() or not os.access(kernel_python, os.X_OK):
+                raise UnsupportedLifecycleHost(
+                    f"Prime kernel runtime is missing or not executable: {kernel_python}"
+                )
+            env["PRIME_AGENT_KERNEL_PYTHON"] = str(kernel_python)
         env.update(
             {
                 "HOME": self._runtime_path("agent-home"),
