@@ -25,6 +25,23 @@ When the host exposes a verified `delegate_minion` tool:
 
 Do not route architecture, security, authority, independent review, release judgment, rollback judgment, or irreversible cutover decisions to Luna.
 
+### Product-readiness gate
+
+`FULL` here means the installed Prime route is usable as a Hermes subagent alternative and can exercise Prime's RLM/session capability. It is not a host-security certification, universal provider claim, or requirement to add a daemon, database, global cgroup, or Hermes-core seam.
+
+Prime may enter the default execution pool only when the exact installed plugin candidate has passed the minimum product claim:
+
+- source tests prove bounded IPC/session behavior and deterministic cleanup of the task-owned Prime process tree;
+- the supported Linux/WSL namespace profile admits the worker as namespace PID 1, or the route is reported unavailable without a process-group fallback;
+- credential-free pinned embedded-Prime route and two-process resume probes pass;
+- the clean-installed registry exposes `delegate_minion`, status, and close tools from the exact candidate;
+- one authenticated bounded delegation and one authenticated resumable/RLM continuation succeed through the registry with effective-route readback; and
+- completion/error cleanup readback shows no task-owned worker, relay, Prime descendant, listener, or private mount left behind.
+
+The namespace worker, bounded tmpfs/IPC, and bootstrap-bound anchor are lifecycle scope guards for those product claims. Do not add broader host-isolation, persistence, review, or soak machinery unless a real use failure falsifies this gate.
+
+If Linux/WSL lacks the required namespace or mount primitive, mark the Prime route unavailable. Never downgrade to process-group-only cleanup. Namespace lifecycle containment is not an OS sandbox and does not enlarge workspace authority.
+
 ## Review pool
 
 - A `Terra/high` review lane may use either a native Hermes subagent or a Prime Agent minion according to task complexity, context-isolation needs, and the lowest-cost route that preserves the required independence.

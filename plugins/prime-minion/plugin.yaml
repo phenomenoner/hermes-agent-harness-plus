@@ -1,23 +1,8 @@
 name: prime-minion
-version: 0.2.0
-description: Run ephemeral or resumable Prime Agent minions through a Hermes-managed Codex bridge
-manifest_version: 2
-api_version: 1
-license: MIT
-homepage: https://github.com/PrimeIntellect-ai/prime-agent
-tags: [agents, minion, prime-agent, openai-codex, sessions]
-python_dependencies:
-  - "aiohttp>=3.9,<4"
+version: 0.3.0
+description: Run lifecycle-contained ephemeral or resumable Prime Agent minions through a Hermes-managed Codex bridge
+manifest_version: 1
 provides_tools:
   - delegate_minion
   - minion_session_status
   - close_minion_session
-config_schema:
-  runtime_dir:
-    type: str
-    default: ""
-    description: Optional pinned Prime Agent checkout; defaults to <plugin>/.runtime/prime-agent
-  timeout_seconds:
-    type: int
-    default: 1800
-    description: Default hard timeout for one minion task

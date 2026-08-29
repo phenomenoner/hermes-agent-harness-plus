@@ -5,12 +5,11 @@ from __future__ import annotations
 import json
 import os
 import re
-import shutil
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Mapping
 
 SESSION_SCHEMA_VERSION = 1
 SESSION_ID_PATTERN = re.compile(r"^minion_[0-9a-f]{32}$")
@@ -151,25 +150,98 @@ def write_manifest(manifest: dict[str, Any]) -> None:
     _atomic_write_json(_manifest_path(session_id), manifest)
 
 
-def _pid_exists(pid: int) -> bool:
-    if pid <= 0:
-        return False
+def _proc_start_time(pid: int) -> str | None:
     try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+        raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+    except (OSError, UnicodeDecodeError):
+        return None
+    close = raw.rfind(")")
+    if close < 0:
+        return None
+    fields = raw[close + 2 :].split()
+    # The suffix starts at field 3; field 22 is suffix index 19.
+    return fields[19] if len(fields) > 19 else None
 
 
-def _read_lock_pid(lock_dir: Path) -> int | None:
+def _boot_id() -> str | None:
+    try:
+        value = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    return value or None
+
+
+def owner_identity(pid: int | None = None) -> dict[str, int | str]:
+    owner_pid = os.getpid() if pid is None else int(pid)
+    start_time = _proc_start_time(owner_pid)
+    boot_id = _boot_id()
+    if start_time is None or boot_id is None:
+        raise SessionError("exact process identity is unavailable")
+    return {
+        "pid": owner_pid,
+        "proc_start_time": start_time,
+        "boot_id": boot_id,
+    }
+
+
+def _read_lock_owner(lock_dir: Path) -> dict[str, Any] | None:
     try:
         value = json.loads((lock_dir / "owner.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    pid = value.get("pid") if isinstance(value, dict) else None
-    return pid if isinstance(pid, int) else None
+    if not isinstance(value, dict):
+        return None
+    return value
+
+
+def _owner_is_live(owner: Mapping[str, Any] | None) -> bool:
+    if not isinstance(owner, Mapping):
+        return False
+    pid = owner.get("pid")
+    start_time = owner.get("proc_start_time")
+    boot_id = owner.get("boot_id")
+    if not isinstance(pid, int) or not isinstance(start_time, str) or not isinstance(boot_id, str):
+        return False
+    try:
+        current = owner_identity(pid)
+    except SessionError:
+        return False
+    return current == {
+        "pid": pid,
+        "proc_start_time": start_time,
+        "boot_id": boot_id,
+    }
+
+
+def _remove_exact_lease_dir(
+    path: Path,
+    *,
+    expected_identity: tuple[int, int] | None = None,
+    expected_token: str | None = None,
+) -> bool:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return True
+    if not path.is_dir() or path.is_symlink():
+        return False
+    if expected_identity is not None and (info.st_dev, info.st_ino) != expected_identity:
+        return False
+    owner = _read_lock_owner(path)
+    if expected_token is not None and (not isinstance(owner, dict) or owner.get("lease_token") != expected_token):
+        return False
+    try:
+        entries = list(path.iterdir())
+    except OSError:
+        return False
+    if {entry.name for entry in entries} - {"owner.json"}:
+        return False
+    try:
+        (path / "owner.json").unlink(missing_ok=True)
+        path.rmdir()
+    except OSError:
+        return False
+    return True
 
 
 @contextmanager
@@ -179,28 +251,42 @@ def session_lease(session_id: str) -> Iterator[None]:
         raise SessionError("minion session not found")
     lock_dir = root / ".lease"
     acquired = False
+    lease_token = uuid.uuid4().hex
+    lease_identity: tuple[int, int] | None = None
     for _ in range(3):
+        candidate = root / f".lease.candidate.{uuid.uuid4().hex}"
+        candidate.mkdir(mode=0o700)
+        _atomic_write_json(
+            candidate / "owner.json",
+            {**owner_identity(), "acquired_at": _now(), "lease_token": lease_token},
+        )
         try:
-            lock_dir.mkdir(mode=0o700)
+            os.rename(candidate, lock_dir)
+            info = lock_dir.stat()
+            lease_identity = (info.st_dev, info.st_ino)
             acquired = True
             break
-        except FileExistsError:
-            owner_pid = _read_lock_pid(lock_dir)
-            if owner_pid is not None and _pid_exists(owner_pid):
+        except OSError:
+            _remove_exact_lease_dir(candidate, expected_token=lease_token)
+            owner = _read_lock_owner(lock_dir)
+            if _owner_is_live(owner):
                 raise SessionBusyError("minion session is already active")
             stale = root / f".lease.stale.{uuid.uuid4().hex}"
             try:
                 os.replace(lock_dir, stale)
             except (FileNotFoundError, OSError):
                 continue
-            shutil.rmtree(stale, ignore_errors=True)
+            _remove_exact_lease_dir(stale)
     if not acquired:
         raise SessionBusyError("could not acquire minion session lease")
-    _atomic_write_json(lock_dir / "owner.json", {"pid": os.getpid(), "acquired_at": _now()})
     try:
         yield
     finally:
-        shutil.rmtree(lock_dir, ignore_errors=True)
+        _remove_exact_lease_dir(
+            lock_dir,
+            expected_identity=lease_identity,
+            expected_token=lease_token,
+        )
 
 
 def validate_resume_binding(manifest: dict[str, Any], *, workdir: Path, prime_commit: str) -> None:
@@ -212,18 +298,44 @@ def validate_resume_binding(manifest: dict[str, Any], *, workdir: Path, prime_co
         raise SessionError("minion session Prime runtime pin mismatch")
 
 
+def _current_lease_owner(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    session_id = manifest.get("session_id")
+    if not isinstance(session_id, str):
+        raise SessionError("minion session identity is invalid")
+    owner = _read_lock_owner(session_root(session_id) / ".lease")
+    if not _owner_is_live(owner) or not isinstance(owner, dict) or not isinstance(owner.get("lease_token"), str):
+        raise SessionBusyError("minion session has no live exact mutation lease")
+    return {
+        "pid": owner["pid"],
+        "proc_start_time": owner["proc_start_time"],
+        "boot_id": owner["boot_id"],
+        "lease_token": owner["lease_token"],
+    }
+
+
+def _repair_stale_running_turn(manifest: dict[str, Any]) -> None:
+    turns = manifest.get("turns")
+    if manifest.get("state") != "RUNNING" or not isinstance(turns, list) or not turns:
+        return
+    previous = turns[-1]
+    if not isinstance(previous, dict) or previous.get("status") != "RUNNING":
+        return
+    prior_owner = previous.get("lease_owner")
+    if isinstance(prior_owner, Mapping) and _owner_is_live(prior_owner):
+        raise SessionBusyError("previous RUNNING turn still has a live exact owner")
+    previous.update(
+        {
+            "status": "INTERRUPTED",
+            "ended_at": _now(),
+            "error": "previous owner disappeared before terminal lifecycle closure",
+        }
+    )
+
+
 def begin_turn(manifest: dict[str, Any], requested_route: dict[str, str]) -> int:
+    lease_owner = _current_lease_owner(manifest)
     turns = manifest["turns"]
-    if manifest.get("state") == "RUNNING" and turns:
-        previous = turns[-1]
-        if isinstance(previous, dict) and previous.get("status") == "RUNNING":
-            previous.update(
-                {
-                    "status": "INTERRUPTED",
-                    "ended_at": _now(),
-                    "error": "previous owner disappeared before recording a terminal result",
-                }
-            )
+    _repair_stale_running_turn(manifest)
     generation = int(manifest.get("generation") or 0) + 1
     manifest["generation"] = generation
     manifest["state"] = "RUNNING"
@@ -233,6 +345,7 @@ def begin_turn(manifest: dict[str, Any], requested_route: dict[str, str]) -> int
             "status": "RUNNING",
             "requested_route": dict(requested_route),
             "started_at": _now(),
+            "lease_owner": lease_owner,
         }
     )
     write_manifest(manifest)
@@ -333,8 +446,10 @@ def public_status(manifest: dict[str, Any]) -> dict[str, Any]:
 
 
 def close_manifest(manifest: dict[str, Any]) -> None:
+    _current_lease_owner(manifest)
     if manifest.get("state") == "RUNNING":
-        raise SessionBusyError("minion session is already active")
+        _repair_stale_running_turn(manifest)
+        manifest["state"] = "INTERRUPTED"
     manifest["state"] = "CLOSED"
     manifest["closed_at"] = _now()
     write_manifest(manifest)
@@ -347,6 +462,7 @@ __all__ = [
     "close_manifest",
     "create_manifest",
     "load_manifest",
+    "owner_identity",
     "public_status",
     "record_completed",
     "record_interrupted",

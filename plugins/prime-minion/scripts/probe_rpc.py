@@ -1,133 +1,108 @@
 #!/usr/bin/env python3
-"""Credential-free Prime RPC/extension constructibility probes."""
+"""Credential-free route/readback probe through the 0.3 worker lifecycle."""
 
 from __future__ import annotations
 
 import argparse
-import base64
+import asyncio
+import importlib.util
 import json
-import os
-import subprocess
+import sys
+import types
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / ".runtime" / "prime-agent"
-EXTENSION = ROOT / "prime_extension.mjs"
+PACKAGE = "prime_minion_rpc_probe"
 MODELS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
 EFFORTS = ("none", "low", "medium", "high", "xhigh", "max")
-PRIME_EFFORT = {"none": "off", "low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"}
-BASE_URL = "http://127.0.0.1:32123/v1"
 
 
-def b64url(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+def load_tools():
+    package = types.ModuleType(PACKAGE)
+    package.__path__ = [str(ROOT)]  # type: ignore[attr-defined]
+    sys.modules[PACKAGE] = package
+    for name in ("sessions", "invocation_worker", "tools"):
+        path = ROOT / f"{name}.py"
+        spec = importlib.util.spec_from_file_location(f"{PACKAGE}.{name}", path)
+        if spec is None or spec.loader is None:
+            raise SystemExit(f"cannot load {path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[f"{PACKAGE}.tools"]
 
 
-def synthetic_key() -> str:
-    return ".".join(
-        (
-            b64url(b'{"alg":"none","typ":"JWT"}'),
-            b64url(b'{"https://api.openai.com/auth":{"chatgpt_account_id":"probe"}}'),
-            "",
-        )
+async def probe(tools: Any, model: str, effort: str) -> dict[str, Any]:
+    route = {"provider": "openai-codex", "model": model, "reasoning_effort": effort}
+    result, _diagnostic, evidence = await tools._run_invocation(
+        task="credential-free route/readback probe; do not prompt",
+        workdir=ROOT,
+        runtime=RUNTIME,
+        route=route,
+        timeout_seconds=30,
+        session_mode="ephemeral",
+        session_directory=None,
+        resume_path=None,
+        preflight=True,
+        operation="route_probe",
     )
-
-
-def clean_environment() -> dict[str, str]:
-    env = dict(os.environ)
-    for key in list(env):
-        upper = key.upper()
-        if any(marker in upper for marker in ("API_KEY", "ACCESS_TOKEN", "AUTH_TOKEN", "REFRESH_TOKEN", "SECRET")):
-            env.pop(key, None)
-    env.update(
-        {
-            "DO_NOT_TRACK": "1",
-            "PRIME_AGENT_TELEMETRY": "0",
-            "PRIME_AGENT_CODING_AGENT_DIR": str(ROOT / ".runtime" / "probe-home"),
-            "HERMES_MINION_PROXY_BASE_URL": BASE_URL,
-            "HERMES_MINION_PROXY_API_KEY": synthetic_key(),
-        }
-    )
-    return env
-
-
-def probe(model_id: str, effort: str) -> dict[str, str]:
-    launcher = RUNTIME / "prime-agent.sh"
-    if not launcher.is_file():
-        raise SystemExit(f"missing runtime: {launcher}")
-    command = [
-        str(launcher),
-        "--mode",
-        "rpc",
-        "--no-session",
-        "--no-extensions",
-        "--extension",
-        str(EXTENSION),
-        "--provider",
-        "openai-codex",
-        "--model",
-        model_id,
-        "--thinking",
-        PRIME_EFFORT[effort],
-        "--cwd",
-        str(ROOT),
-    ]
-    completed = subprocess.run(
-        command,
-        input='{"id":"probe","type":"get_state"}\n',
-        text=True,
-        capture_output=True,
-        env=clean_environment(),
-        cwd=RUNTIME,
-        timeout=90,
-        check=False,
-    )
-    if completed.returncode != 0:
-        raise SystemExit(f"Prime RPC probe exited {completed.returncode}: {completed.stderr[-2000:]}")
-    responses = []
-    for line in completed.stdout.splitlines():
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise SystemExit(f"non-JSON RPC stdout: {line[:200]}") from exc
-        if value.get("type") == "response" and value.get("command") == "get_state":
-            responses.append(value)
-    if len(responses) != 1 or responses[0].get("success") is not True:
-        raise SystemExit(f"missing successful get_state response: {completed.stdout[-2000:]}")
-    state = responses[0]["data"]
-    model = state.get("model") or {}
-    observed = {key: model.get(key) for key in ("provider", "id", "baseUrl")}
-    expected = {"provider": "openai-codex", "id": model_id, "baseUrl": BASE_URL}
-    if observed != expected or state.get("thinkingLevel") != PRIME_EFFORT[effort]:
-        raise SystemExit(
-            f"route mismatch: model={observed}, thinking={state.get('thinkingLevel')}"
-        )
-    return {
-        "provider": "openai-codex",
-        "model": model_id,
-        "reasoning_effort": effort,
-        "prime_thinking_level": PRIME_EFFORT[effort],
+    expected = {
+        "status": "completed",
+        "operation": "route_probe",
+        "route": route,
+        "effective_route": route,
+        "result": "ROUTE_PROBE_OK",
+        "prompt_accepted": False,
+        "provider_request_sent": False,
     }
+    for key, value in expected.items():
+        if result.get(key) != value:
+            raise SystemExit(f"route probe mismatch for {key}: expected {value!r}, observed {result.get(key)!r}")
+    for key in ("cleanup_verified", "mount_absent", "children_reaped"):
+        if result.get(key) is not True:
+            raise SystemExit(f"route probe terminal result omitted {key}")
+    stages = {record.get("stage"): record for record in evidence.get("startup_evidence", [])}
+    mounted = stages.get("mounted") or {}
+    if not isinstance(mounted.get("mount_id"), int):
+        raise SystemExit("route probe evidence omitted exact mount ID")
+    return {
+        "route": route,
+        "prime_session_id_absent": "prime_session_id" not in result,
+        "worker_pid_namespace_pid": result.get("worker_pid_namespace_pid"),
+        "worker_mount_namespace": evidence.get("worker_mount_namespace"),
+        "mount_id": mounted["mount_id"],
+        "cleanup_clean": result["cleanup_verified"],
+    }
+
+
+async def run(matrix: bool) -> list[dict[str, Any]]:
+    if not (RUNTIME / ".git").is_dir():
+        raise SystemExit(f"pinned Prime runtime is not installed at {RUNTIME}")
+    tools = load_tools()
+    routes = (
+        [(model, effort) for model in MODELS for effort in EFFORTS]
+        if matrix
+        else [("gpt-5.6-luna", "max")]
+    )
+    return [await probe(tools, model, effort) for model, effort in routes]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--matrix", action="store_true", help="probe every supported model/effort pair")
+    parser.add_argument("--matrix", action="store_true")
     args = parser.parse_args()
-    routes = (
-        [probe(model, effort) for model in MODELS for effort in EFFORTS]
-        if args.matrix
-        else [probe("gpt-5.6-luna", "max")]
-    )
+    receipts = asyncio.run(run(args.matrix))
     print(
         json.dumps(
             {
                 "status": "pass",
-                "route_count": len(routes),
-                "models": list(MODELS) if args.matrix else ["gpt-5.6-luna"],
-                "reasoning_efforts": list(EFFORTS) if args.matrix else ["max"],
-                "routes": routes,
-            }
+                "provider_requests_sent": 0,
+                "route_count": len(receipts),
+                "routes": receipts,
+            },
+            sort_keys=True,
         )
     )
 

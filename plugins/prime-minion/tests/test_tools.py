@@ -70,7 +70,7 @@ def test_child_environment_strips_provider_secrets(monkeypatch, tmp_path) -> Non
     )
     assert "OPENAI_API_KEY" not in env
     assert "SOME_ACCESS_TOKEN" not in env
-    assert env["SAFE_PROJECT_VALUE"] == "preserved"
+    assert "SAFE_PROJECT_VALUE" not in env
     assert env["HERMES_MINION_PROXY_BASE_URL"] == "http://127.0.0.1:32123/v1"
     assert env["HERMES_MINION_PROXY_API_KEY"] == synthetic
     assert synthetic.count(".") == 2
@@ -310,11 +310,12 @@ def test_status_and_close_do_not_expose_transcript_path(tmp_path, monkeypatch) -
     sessions, tools = load_modules()
     monkeypatch.setenv("PRIME_MINION_STATE_DIR", str(tmp_path / "state"))
     manifest = sessions.create_manifest(workdir=tmp_path, prime_commit="b" * 40)
-    sessions.begin_turn(
-        manifest,
-        {"provider": "openai-codex", "model": "gpt-5.6-luna", "reasoning_effort": "max"},
-    )
-    sessions.record_interrupted(manifest, "/private/internal/transcript/path")
+    with sessions.session_lease(manifest["session_id"]):
+        sessions.begin_turn(
+            manifest,
+            {"provider": "openai-codex", "model": "gpt-5.6-luna", "reasoning_effort": "max"},
+        )
+        sessions.record_interrupted(manifest, "/private/internal/transcript/path")
     status = json.loads(
         asyncio.run(tools.minion_session_status({"session_id": manifest["session_id"]}))
     )

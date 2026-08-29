@@ -1,107 +1,109 @@
 #!/usr/bin/env python3
-"""Credential-free create, process-exit, and resume probe for Prime RPC."""
+"""Credential-free two-process resume through the 0.3 worker lifecycle."""
 
 from __future__ import annotations
 
+import asyncio
 import json
-import shutil
-import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
-from probe_rpc import BASE_URL, EXTENSION, RUNTIME, clean_environment
+from probe_rpc import RUNTIME, load_tools
 
-ROOT = Path(__file__).resolve().parents[1]
-PROBE_ROOT = ROOT / ".runtime" / "resume-probe"
-SESSION_DIR = PROBE_ROOT / "sessions"
+ROUTE = {"provider": "openai-codex", "model": "gpt-5.6-luna", "reasoning_effort": "max"}
 
 
-def run_state(*, resume: Path | None) -> dict[str, Any]:
-    command = [
-        str(RUNTIME / "prime-agent.sh"),
-        "--mode",
-        "rpc",
-        "--session-dir",
-        str(SESSION_DIR),
-        "--no-extensions",
-        "--extension",
-        str(EXTENSION),
-        "--provider",
-        "openai-codex",
-        "--model",
-        "gpt-5.6-luna",
-        "--thinking",
-        "max",
-        "--cwd",
-        str(PROBE_ROOT),
-    ]
-    if resume is not None:
-        command.extend(["--resume", str(resume)])
-    completed = subprocess.run(
-        command,
-        input='{"id":"state","type":"get_state"}\n',
-        text=True,
-        capture_output=True,
-        env=clean_environment(),
-        cwd=RUNTIME,
-        timeout=90,
-        check=False,
+async def run_state(
+    tools: Any,
+    *,
+    workdir: Path,
+    session_dir: Path,
+    resume_path: Path | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    result, _diagnostic, evidence = await tools._run_invocation(
+        task="credential-free resume route/readback probe; do not prompt",
+        workdir=workdir,
+        runtime=RUNTIME,
+        route=ROUTE,
+        timeout_seconds=30,
+        session_mode="resumable",
+        session_directory=session_dir,
+        resume_path=resume_path,
+        preflight=True,
+        operation="route_probe",
     )
-    if completed.returncode != 0:
-        raise SystemExit(f"Prime resume probe exited {completed.returncode}: {completed.stderr[-2000:]}")
-    states = []
-    for line in completed.stdout.splitlines():
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise SystemExit(f"non-JSON RPC stdout: {line[:200]}") from exc
-        if value.get("type") == "response" and value.get("command") == "get_state":
-            states.append(value)
-    if len(states) != 1 or states[0].get("success") is not True:
-        raise SystemExit(f"missing successful get_state response: {completed.stdout[-2000:]}")
-    return states[0]["data"]
+    expected = {
+        "status": "completed",
+        "operation": "route_probe",
+        "effective_route": ROUTE,
+        "prompt_accepted": False,
+        "provider_request_sent": False,
+        "cleanup_verified": True,
+        "mount_absent": True,
+        "children_reaped": True,
+    }
+    for key, value in expected.items():
+        if result.get(key) != value:
+            raise SystemExit(f"resume probe mismatch for {key}: expected {value!r}, observed {result.get(key)!r}")
+    return result, evidence
+
+
+async def run() -> dict[str, Any]:
+    tools = load_tools()
+    with tempfile.TemporaryDirectory(prefix="prime-minion-resume-probe-") as temp:
+        root = Path(temp)
+        workdir = root / "workdir"
+        session_dir = root / "sessions"
+        workdir.mkdir(mode=0o700)
+        session_dir.mkdir(mode=0o700)
+        first, first_evidence = await run_state(
+            tools,
+            workdir=workdir,
+            session_dir=session_dir,
+            resume_path=None,
+        )
+        session_file = first.get("session_file")
+        session_id = first.get("prime_session_id")
+        if not isinstance(session_file, str) or not Path(session_file).is_file():
+            raise SystemExit(
+                "first worker did not persist a Prime session file; "
+                f"result_keys={sorted(first)} session_file={session_file!r} "
+                f"has_prime_session_id={isinstance(session_id, str) and bool(session_id)}"
+            )
+        if not isinstance(session_id, str) or not session_id:
+            raise SystemExit("first worker did not return a Prime session identity")
+        second, second_evidence = await run_state(
+            tools,
+            workdir=workdir,
+            session_dir=session_dir,
+            resume_path=Path(session_file),
+        )
+        if second.get("prime_session_id") != session_id:
+            raise SystemExit("resumed Prime session identity changed")
+        if Path(str(second.get("session_file"))).resolve() != Path(session_file).resolve():
+            raise SystemExit("resumed Prime session file changed")
+        return {
+            "status": "pass",
+            "provider_requests_sent": 0,
+            "processes": 2,
+            "same_prime_session_id": True,
+            "same_session_file": True,
+            "route": ROUTE,
+            "cleanup_clean": [first["cleanup_verified"], second["cleanup_verified"]],
+            "worker_pid_namespace_pid": [
+                first["worker_pid_namespace_pid"],
+                second["worker_pid_namespace_pid"],
+            ],
+            "worker_mount_namespace": [
+                first_evidence["worker_mount_namespace"],
+                second_evidence["worker_mount_namespace"],
+            ],
+        }
 
 
 def main() -> None:
-    if PROBE_ROOT.exists():
-        shutil.rmtree(PROBE_ROOT)
-    SESSION_DIR.mkdir(parents=True, mode=0o700)
-    first = run_state(resume=None)
-    session_file = first.get("sessionFile")
-    session_id = first.get("sessionId")
-    if not isinstance(session_file, str) or not Path(session_file).is_file():
-        raise SystemExit(f"first process did not persist a session file: {session_file!r}")
-    if not isinstance(session_id, str) or not session_id:
-        raise SystemExit("first process did not return a session id")
-
-    second = run_state(resume=Path(session_file))
-    if second.get("sessionId") != session_id:
-        raise SystemExit(
-            f"resume identity mismatch: first={session_id!r}, second={second.get('sessionId')!r}"
-        )
-    if Path(str(second.get("sessionFile"))).resolve() != Path(session_file).resolve():
-        raise SystemExit("resume file mismatch")
-    model = second.get("model") if isinstance(second.get("model"), dict) else {}
-    if model.get("provider") != "openai-codex" or model.get("id") != "gpt-5.6-luna":
-        raise SystemExit(f"resumed route mismatch: {model}")
-    if second.get("thinkingLevel") != "max":
-        raise SystemExit(f"resumed effort mismatch: {second.get('thinkingLevel')!r}")
-    print(
-        json.dumps(
-            {
-                "status": "pass",
-                "processes": 2,
-                "same_prime_session_id": True,
-                "same_session_file": True,
-                "route": {
-                    "provider": "openai-codex",
-                    "model": "gpt-5.6-luna",
-                    "reasoning_effort": "max",
-                },
-                "base_url": BASE_URL,
-            }
-        )
-    )
+    print(json.dumps(asyncio.run(run()), sort_keys=True))
 
 
 if __name__ == "__main__":
