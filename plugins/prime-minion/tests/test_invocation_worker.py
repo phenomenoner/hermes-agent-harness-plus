@@ -69,6 +69,20 @@ def provision_test_anchor(tools, runtime: Path, anchor: Path) -> None:
     tools.provision_fixed_anchor(anchor)
 
 
+@pytest.fixture(scope="session")
+def lifecycle_capability(tmp_path_factory: pytest.TempPathFactory) -> dict[str, object]:
+    if not sys.platform.startswith("linux"):
+        pytest.skip("namespace lifecycle is Linux/WSL-only")
+    tools = load_module("tools")
+    runtime = tmp_path_factory.mktemp("prime-minion-lifecycle-capability")
+    anchor = runtime / "invocation-anchor"
+    provision_test_anchor(tools, runtime, anchor)
+    try:
+        return tools.check_capability_profile(anchor)
+    except tools.UnsupportedLifecycleHost as exc:
+        pytest.skip(f"namespace lifecycle capability unavailable: {exc}")
+
+
 def test_invocation_worker_exports_bounded_protocol_contract() -> None:
     worker_path = ROOT / "invocation_worker.py"
     assert worker_path.is_file(), "invocation_worker.py is the required lifecycle owner"
@@ -580,7 +594,7 @@ def test_worker_relay_and_prime_environments_are_role_allowlists(monkeypatch: py
         assert "OPENAI_API_KEY" not in env
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_actual_nested_children_receive_only_role_env_and_runtime_fd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -637,7 +651,7 @@ def test_actual_nested_children_receive_only_role_env_and_runtime_fd(
         )
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_parallel_invocations_share_only_fixed_anchor_not_private_mount(tmp_path: Path, monkeypatch) -> None:
     tools = load_module("tools")
     runtime = tmp_path / "runtime"
@@ -711,7 +725,7 @@ def test_relay_readiness_reader_rejects_at_64_kib_not_stream_limit() -> None:
     asyncio.run(scenario())
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_no_provider_worker_is_pid1_and_restores_invocation_baseline(tmp_path: Path) -> None:
     tools = load_module("tools")
     result = tools.run_no_provider_invocation_for_test(tmp_path)
@@ -738,7 +752,7 @@ def test_parent_loss_is_failure_and_never_provisional_success() -> None:
     ) is False
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_repeated_parent_cancellation_settles_worker_and_anchor(tmp_path: Path, monkeypatch) -> None:
     tools = load_module("tools")
     runtime = tmp_path / "runtime"
@@ -810,7 +824,7 @@ def test_cancellation_does_not_erase_cleanup_failure(tmp_path: Path, monkeypatch
     asyncio.run(scenario())
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_malformed_result_and_unresponsive_worker_hit_parent_hard_deadline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -852,7 +866,7 @@ def test_malformed_result_and_unresponsive_worker_hit_parent_hard_deadline(
     assert list(anchor.iterdir()) == []
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_pid1_reaps_detached_double_fork_term_ignoring_descendant(tmp_path: Path, monkeypatch) -> None:
     tools = load_module("tools")
     runtime = tmp_path / "runtime"
@@ -886,7 +900,7 @@ def test_pid1_reaps_detached_double_fork_term_ignoring_descendant(tmp_path: Path
     assert list(anchor.iterdir()) == []
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_post_mount_anchor_replacement_preserves_foreign_sentinel(tmp_path: Path, monkeypatch) -> None:
     tools = load_module("tools")
     runtime = tmp_path / "runtime"
@@ -936,7 +950,7 @@ def test_post_mount_anchor_replacement_preserves_foreign_sentinel(tmp_path: Path
     assert list(saved_anchor.iterdir()) == []
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_pre_worker_anchor_replacement_fails_closed_and_preserves_sentinel(tmp_path: Path, monkeypatch) -> None:
     tools = load_module("tools")
     runtime = tmp_path / "runtime"
@@ -999,7 +1013,7 @@ def test_pre_worker_anchor_replacement_fails_closed_and_preserves_sentinel(tmp_p
     assert list(saved_anchor.iterdir()) == []
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 @pytest.mark.parametrize("kill_stage", ["handlers", "mounted", "relay_ready", "prime_running"])
 def test_hard_parent_death_closes_control_and_tears_down_exact_tree(tmp_path: Path, kill_stage: str) -> None:
     tools = load_module("tools")
@@ -1091,7 +1105,7 @@ def test_hard_parent_death_closes_control_and_tears_down_exact_tree(tmp_path: Pa
             os.kill(launcher_pid, signal.SIGKILL)
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="namespace lifecycle is Linux/WSL-only")
+@pytest.mark.usefixtures("lifecycle_capability")
 def test_hard_parent_death_before_worker_handlers_uses_direct_launcher_guard(tmp_path: Path) -> None:
     tools = load_module("tools")
     runtime = tmp_path / "runtime"

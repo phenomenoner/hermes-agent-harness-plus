@@ -274,3 +274,26 @@ Fresh-install observation:
 
 Next safe action:
 - Verify manifest/T0 and plugin tests, commit/push the metadata-only compatibility successor, then retry exact-SHA clean install. The earlier executable source review remains bound to unchanged executable bytes; installation is the discriminator for this packaging change.
+
+## 2026-08-29 — clean install PASS; CI capability classification repair
+
+Installed candidate:
+- Metadata-only compatibility successor `2dcc75c62166a86900c93a43ceed69e1e02f4b08` was pushed and its remote tree/parent were read back exactly.
+- Official exact-SHA clean install succeeded: plugin `0.3.0` enabled, pinned install metadata exact, and all 23 installed source files matched the commit with no missing, extra, or mismatched source bytes.
+- Fresh runtime bootstrap verified Prime Agent `0.8.1` at `bc0fa7606abb3b7af0f765319518d255e6ae553d`; runtime parent/anchor/receipt modes, receipt schema, FD admission, empty anchor, and post-bootstrap source parity passed.
+- The package manager reported four inherited Prime dependency advisories (two moderate, two high). No automatic dependency rewrite is authorized in this lane.
+
+Gateway pickup:
+- In-gateway restart was correctly blocked because it would terminate the command process. No restart occurred and no bypass was attempted.
+- One external-shell gateway restart remains the only user-owned prerequisite for registry/live delegation and resumable continuation acceptance.
+
+CI RED and repair:
+- Draft PR CI failed only in 11 true-process cases because GitHub's Linux runner denied the required user/mount/PID namespace operation while tests classified capability using `sys.platform` alone.
+- Ten true-process decorators cover 14 cases, including a four-way parent-death matrix. All now depend on one session fixture that invokes the same production `check_capability_profile()` against a provisioned anchor.
+- Unsupported hosts skip those T3 cases with the exact capability failure; supported Linux/WSL hosts still execute them. Production admission remains fail closed and no CI-name bypass, mock namespace, or process-group fallback exists.
+- Discriminating evidence: capability-absent simulation skipped the selected true-process case with `unshare failed`; the supported WSL plugin suite remained 48/48 PASS with zero skips; Ruff, compileall, and diff hygiene passed.
+- A local whole-repository run was not green because six unrelated Context Canvas soak-report tests could not resolve a trusted local Context Canvas tool root and produced no metric rows. The prior GitHub run passed that component and this successor changes only the Prime test module and WAL; publication still requires a fresh complete GitHub CI PASS.
+
+Next safe action:
+- Run the final repository suite, commit/push the test/WAL-only CI successor, and require green PR CI.
+- After the external-shell gateway restart, run the minimum authenticated registry delegation plus two-turn resumable/RLM continuation and exact residue readback. Only then mark the PR ready and merge.
