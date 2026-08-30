@@ -42,6 +42,7 @@ MAX_TASK_BYTES = MAX_REQUEST_BYTES // 2
 EVIDENCE_PREFIX = "PRIME_MINION_EVIDENCE "
 MAX_RPC_EVENTS = 256
 MAX_RPC_RETAINED_BYTES = 8 << 20
+_RETAINED_RPC_EVENT_TYPES = frozenset({"response", "tool_execution_end", "agent_end"})
 TMPFS_SIZE = "64M"
 CAPABILITY_PROFILE = "linux-user-mount-pid-v1"
 
@@ -889,6 +890,7 @@ class _PrimeRPC:
         self.reader_task = asyncio.create_task(self._read_events())
         self.failure: Exception | None = None
         self.event_count = 0
+        self.retained_event_count = 0
         self.retained_bytes = 0
 
     def _fail(self, message: str) -> None:
@@ -942,9 +944,12 @@ class _PrimeRPC:
                         self._fail("Prime RPC emitted a non-object record")
                         continue
                     self.event_count += 1
+                    if value.get("type") not in _RETAINED_RPC_EVENT_TYPES:
+                        continue
+                    self.retained_event_count += 1
                     self.retained_bytes += len(line)
-                    if self.event_count > MAX_RPC_EVENTS:
-                        self._fail("Prime RPC event count exceeds 256 records")
+                    if self.retained_event_count > MAX_RPC_EVENTS:
+                        self._fail("Prime RPC retained event count exceeds 256 records")
                         continue
                     if self.retained_bytes > MAX_RPC_RETAINED_BYTES:
                         self._fail("Prime RPC retained output exceeds 8 MiB")

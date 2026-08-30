@@ -774,7 +774,8 @@ def test_prime_rpc_event_flood_fails_promptly_but_drains_to_eof() -> None:
     async def scenario() -> tuple[int, bool]:
         stream = asyncio.StreamReader()
         payload = b"".join(
-            json.dumps({"type": "event", "index": index}, separators=(",", ":")).encode() + b"\n"
+            json.dumps({"type": "tool_execution_end", "index": index}, separators=(",", ":")).encode()
+            + b"\n"
             for index in range(worker.MAX_RPC_EVENTS + 32)
         )
         stream.feed_data(payload)
@@ -789,6 +790,35 @@ def test_prime_rpc_event_flood_fails_promptly_but_drains_to_eof() -> None:
     queue_size, at_eof = asyncio.run(scenario())
     assert queue_size <= 1
     assert at_eof is True
+
+
+def test_prime_rpc_stream_updates_do_not_consume_retained_event_budget() -> None:
+    worker = load_module("invocation_worker")
+
+    async def scenario() -> tuple[dict[str, object], int, int]:
+        stream = asyncio.StreamReader()
+        update_count = worker.MAX_RPC_EVENTS + 32
+        payload = b"".join(
+            json.dumps(
+                {"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "x"}},
+                separators=(",", ":"),
+            ).encode()
+            + b"\n"
+            for _ in range(update_count)
+        )
+        payload += json.dumps({"type": "agent_end", "messages": []}, separators=(",", ":")).encode() + b"\n"
+        stream.feed_data(payload)
+        stream.feed_eof()
+        process = types.SimpleNamespace(stdout=stream, stdin=None)
+        rpc = worker._PrimeRPC(process)
+        await rpc.reader_task
+        event = await rpc.next_event(timeout=0.01)
+        return event, rpc.event_count, rpc.retained_event_count
+
+    event, event_count, retained_event_count = asyncio.run(scenario())
+    assert event == {"type": "agent_end", "messages": []}
+    assert event_count == 289
+    assert retained_event_count == 1
 
 
 def test_relay_readiness_reader_rejects_at_64_kib_not_stream_limit() -> None:
