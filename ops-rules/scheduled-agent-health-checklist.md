@@ -48,6 +48,36 @@ Prefer deterministic commands that work in minimal shell environments. Avoid
 relying on interactive helpers or notebook-style execution paths inside an
 unattended runner.
 
+### Pin verifier tools without changing project state
+
+An unattended shell may not have the same `PATH` or globally installed tools as
+an interactive session. Make every required verifier part of the job contract:
+
+- invoke a provisioned project environment through its explicit interpreter;
+- use an isolated runner with a reviewed, pinned tool version; or
+- run a container image pinned by digest when stronger isolation is warranted.
+
+For a `pyproject.toml` project, `uv run --isolated --no-project` can build a
+throwaway environment from explicit local extras without creating a project
+virtual environment or lockfile:
+
+```bash
+git status --short
+uv run --isolated --no-project \
+  --with-editable '.[mcp,dev]' \
+  --with 'pytest==8.4.2' \
+  pytest -p no:cacheprovider -q
+git status --short
+```
+
+Treat the extras and `8.4.2` as example pins to review and update for your
+project. Compare the two status snapshots, not just whether both are empty: a
+job may start from an intentionally dirty fixture. If the verifier creates or
+changes project files, configure its cache and environment outside the
+repository or choose a different runner. Test dependency-injection commands in
+a clean clone before scheduling them; project-aware package-manager modes may
+synthesize a lockfile or local environment as a side effect.
+
 ### Verify backups before applying retention
 
 A backup file is a candidate, not a recovery point, until its contents are
