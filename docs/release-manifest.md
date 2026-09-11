@@ -13,7 +13,8 @@ Initial public bundle:
 - Prime Agent minion bridge with Hermes-managed OpenAI Codex credentials,
   explicit route readback, and ephemeral or resumable transcript sessions.
 - Context Canvas awareness, Prime minion PMO routing, plus release, artifact
-  handoff, scheduled-agent, MCP sidecar health, and runtime cutover checklists.
+  handoff, scheduled-agent, SQLite state incident, MCP sidecar health, and
+  runtime cutover checklists.
 - Installation guide and GitHub Pages website.
 
 Kept outside this bundle:
