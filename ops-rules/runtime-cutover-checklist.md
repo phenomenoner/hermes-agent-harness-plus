@@ -96,6 +96,36 @@ Immediately before replacement:
 A preflight from earlier in the day does not prove the current window is safe.
 The final precondition read must happen next to the mutation.
 
+### Prove quiescence for an offline replacement
+
+When replacement requires a fully stopped host, verify the whole owned process
+scope, not just the service's status label. For a systemd-managed target:
+
+- confirm the expected unit is loaded and inspect its current state;
+- treat `inactive` or `failed` as a reason to check further, not as permission to
+  replace files;
+- require both `MainPID` and `ControlPID` to be zero;
+- verify the unit's entire cgroup hierarchy has no remaining processes, including
+  nested child cgroups; and
+- account for any known workers outside that hierarchy using the baseline's
+  exact process identities.
+
+A failed service can be quiescent, and an inactive service can still have
+remaining processes. An empty main PID or a stop command returning successfully
+is not enough. If the unit, process scope, or descendant state cannot be verified,
+classify the gate as unknown and leave the live files unchanged. Clearing a
+failure flag or broadly killing matching process names is not quiescence proof.
+
+Run a quick quiescence check before expensive artifact verification, then repeat
+it immediately before replacement. Keep new work and automatic activation held
+by the maintenance owner throughout; a momentary empty scope does not prevent a
+scheduler, socket, or another supervisor from starting it again.
+
+The stop/start owner must be outside the target's termination scope. If the
+current agent is hosted by that target, use the approved external operator or
+supervisor rather than a delayed helper that restarts its own host. A blocked
+self-restart is an authority boundary, not a reason to try another transport.
+
 ## 6. Apply the smallest atomic change
 
 Prefer an atomic replace, generation switch, or service-manager operation over a
