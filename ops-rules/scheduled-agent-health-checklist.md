@@ -245,11 +245,41 @@ or shutdown scope of its target cannot independently verify that target.
 
 ## 9. Close out with evidence
 
+### Separate recovery evidence from incident bookkeeping
+
+Track these outcomes independently so a successful repair does not hide an
+unverified scheduled path, and an old alert does not trigger unnecessary repair:
+
+| Layer | Evidence to record | What it does not prove |
+|---|---|---|
+| Artifact or service | The exact output generation passes its checks, or a fresh domain query succeeds | The unattended runner executed successfully |
+| Scheduled execution | The intended runner dispatched the job and produced verified output; record whether the trigger was manual or natural | The next natural run will succeed |
+| Incident lifecycle | The incident record was read back after an authorized acknowledgment or resolution | Acknowledgment alone proves recovery |
+
+After a direct repair or manual rerun, report the verified result and keep natural
+schedule recovery pending until the existing schedule runs and its output is
+checked. Do not rewrite historical failures as successes or add a duplicate job
+just to make the status look current.
+
+If current health checks pass but a historical alert remains open, inspect that
+incident's timeline and use the runner's supported acknowledgment or resolution
+flow when authorized. Read back the resulting state; do not edit its database
+directly or restart a healthy dependency just to clear an alert.
+
+Bind each verification receipt to its artifact or service generation, check
+scope, and observation time. A later summary that did not inspect the artifact
+is not evidence that an earlier verified result failed. Reuse the receipt while
+its relevant inputs remain unchanged; when the generation, configuration, or
+check contract changes, rerun the affected checks. Missing evidence is unknown,
+not proof of recovery or failure.
+
 A useful closeout note says:
 
 ```text
 Changed: <script, job, or docs touched>
 Scheduler: enabled/disabled, last run, next run
+Recovery: <verified generation or query; natural run verified or pending>
+Incident: <open, acknowledged, resolved, or not applicable; state read back>
 Verification: <commands and short result>
 Quiet path: <confirmed or not applicable>
 Privacy: <public scan or local-only note>
