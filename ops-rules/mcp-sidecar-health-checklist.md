@@ -20,7 +20,8 @@ into an incident note.
 
 An empty exception message is an observability gap, not proof of a particular
 root cause. Preserve the exception class and a sanitized detail string when the
-host supports it.
+host supports it, in a bounded local diagnostic receipt. Use the shared-output
+rules in section 6 before including those details in a public report.
 
 ## 2. Check the host lifecycle
 
@@ -89,13 +90,62 @@ bad backend health, or dependent scheduled jobs turning unhealthy.
 
 ## 6. Keep diagnostics useful and share-ready
 
-For maintainers improving the host's warning path:
+For maintainers improving a warning or startup path, keep the original failure
+visible even when collecting diagnostics or closing the connection also fails.
+These are implementation checks, not extra probes to run after every warning.
 
-- log the exception class as well as the sanitized message;
-- preserve ordinary error text;
-- redact credentials and secret-looking values before they reach logs;
-- add regression tests for both blank-message and normal-message exceptions;
-- keep account details, raw configuration, and local data out of public reports.
+### Read the actual failure signals
+
+- Inspect the installed SDK's model attributes and wire aliases rather than
+  assuming they match. An attribute such as `is_error` may serialize as `isError`.
+- A successful transport is not a successful tool result. Check the SDK error
+  flag and the producer's declared failure envelope before accepting startup or
+  allowing any dependent write or authorization step.
+- Keep an unrecognized reply shape unknown or rejected under the active contract;
+  do not reinterpret it as success because a familiar nested field is absent.
+
+### Preserve the primary fault
+
+- Capture the failed phase and original exception or error code before optional
+  diagnostic work and before context-manager exit or teardown can replace it.
+- If diagnostic collection fails, record a bounded status such as `not_retained`
+  and preserve the original failure. Do not invent evidence, return success, or
+  replay a side-effecting operation just to obtain a better diagnostic.
+- If the operation and cleanup both fail, retain the operation's primary fault
+  and record the cleanup fault separately. A cleanup-only failure must still be
+  reported; process exit alone does not prove every cleanup obligation completed.
+- Attribute a deadline failure to the timeout scope that actually expired, not
+  merely to an exception named `TimeoutError`. Do not renew an overall deadline
+  at each phase or treat a caller timeout as proof that the child stopped.
+
+### Separate local detail from shared output
+
+- Keep useful exception details in bounded local evidence only after redaction
+  and access-control checks. An empty message remains an observability gap.
+- For public reports or returned evidence, use a finite vocabulary of phases and
+  error categories, with an explicit unknown category. Exception messages,
+  dynamic class names, arguments, and tracebacks can all carry private values.
+- Apply this boundary inside the real helper's catch path, before serialization;
+  a safe outer formatter cannot undo a value already emitted by an inner helper.
+- Keep account details, raw configuration, and local data out of shared output.
+
+### Test the real diagnostic boundary
+
+Use controlled collaborators around the actual helper, not a substitute helper
+that already returns safe diagnostics. Include the applicable cases:
+
+- blank and ordinary exception messages;
+- distinct private-value sentinels in the message and dynamic class name, with
+  neither appearing anywhere in shared output;
+- a valid producer-declared failure that stops before the next effect, alongside
+  a positive control that reaches a harmless test-only boundary;
+- diagnostic collection failure, and primary failure followed by teardown failure,
+  with the original phase/code preserved and cleanup status recorded separately.
+
+When a real SDK test needs tool or output-schema discovery, make the synthetic
+peer answer it. A missing protocol operation is a test-scaffold failure, not
+evidence that the product correctly rejected the reply. Keep controlled-test
+success separate from installed-runtime or real-task acceptance.
 
 Better diagnostics are usually a safer first fix than restarting a healthy
 production process just to load new logging code.
