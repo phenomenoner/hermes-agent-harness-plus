@@ -109,7 +109,8 @@
 - Purpose: keep shared tools reusable and safe before a commit becomes public.
 - Path: `ops-rules/artifact-handoff-checklist.md`
 - Purpose: turn generated images, reports, docs, and bundles into portable
-  share-ready artifacts without leaking the private runtime that produced them.
+  share-ready artifacts; verify archived note generations independently from
+  search-copy storage and semantic recall.
 - Path: `ops-rules/scheduled-agent-health-checklist.md`
 - Purpose: keep unattended agent jobs quiet on success, specific on failure, and
   backed by source-level verification, semantic configuration comparisons, and

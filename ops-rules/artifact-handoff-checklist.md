@@ -77,3 +77,47 @@ How to regenerate: <command or doc pointer>
 
 Do not include raw session excerpts or private troubleshooting logs unless the
 repository is explicitly meant to publish those logs.
+
+## 7. Verify archived notes and search copies separately
+
+A durable note can have an original file, an archive copy, and a searchable
+index. Verify each layer independently so a search miss does not make a saved
+note look lost, and an accepted write does not become an unearned success claim.
+
+### Preserve one final generation
+
+- Finalize the note and calculate its content hash before archiving it.
+- File that exact text; keep later verification receipts outside the note so
+  they do not change the generation being checked.
+- Retain the write response's logical note identifier and every returned
+  physical chunk identifier. Read those exact chunks, not simply the latest
+  entry, which another writer may have created.
+- Reconcile unique chunk identifiers, order, parent identity, and source metadata
+  against the response. Reconstruct the actual returned text using the backend's
+  documented chunking rules and compare it with the finalized note. Contiguous
+  slices may split inside a word: concatenate them without invented separators.
+  Account for documented overlap or normalization explicitly.
+- Build the receipt from actual readback data, not expected chunks generated
+  from the source. Changed note bytes require a new verified archive generation.
+
+### Check storage before judging recall
+
+- Keep the original note authoritative; an index is a derived search copy.
+- For an authorized index write, bind each point to the exact source, full-note
+  content hash, and archive provenance. Read the exact returned point identifiers
+  and verify their stored text and metadata before claiming storage success.
+- Separately run a bounded semantic query using distinctive title or topic
+  terms. Confirm the hit belongs to the intended source and generation, not just
+  a similarly titled older note. Correct payload metadata alone is not recall
+  evidence; a hit need not rank first to be useful.
+
+### Keep optional indexing bounded
+
+If the primary archive verifies but an optional index or recall check does not,
+report those verdicts separately. Preserve one continuation record with the
+note's source, content hash, archive provenance, target collection, observed
+blocker, and remaining acceptance check. Keep private handles in local receipts.
+
+Finish the archive handoff without repeatedly upserting an already verified
+payload, restarting a healthy service, rebuilding a collection, or creating a
+new maintenance job. Broader repair needs its own evidence and authorization.

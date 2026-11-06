@@ -34,6 +34,19 @@ The session indexer:
 Local recall is useful, but it is still an index of your text. Read the dry-run
 output before indexing.
 
+## Keep archived notes distinct from search copies
+
+For an additional durable-note corpus, preserve the finalized note and verify
+its archive independently of Qdrant. Read back exact point identifiers, stored
+text, source identity, content hash, and archive provenance; then check semantic
+recall separately. Green collection status and a successful write are not proof
+that the intended note can be found.
+
+The [artifact handoff checklist](../../ops-rules/artifact-handoff-checklist.md#7-verify-archived-notes-and-search-copies-separately)
+describes generation and chunk verification, independent storage/recall verdicts,
+and a bounded continuation when optional indexing is incomplete. A search miss
+does not invalidate a verified archive or justify broad collection repair.
+
 ## Keep skill recall aligned with the active catalog
 
 The skill indexer treats the Qdrant collection as a searchable projection of the
