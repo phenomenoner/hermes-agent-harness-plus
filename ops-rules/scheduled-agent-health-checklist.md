@@ -78,6 +78,32 @@ repository or choose a different runner. Test dependency-injection commands in
 a clean clone before scheduling them; project-aware package-manager modes may
 synthesize a lockfile or local environment as a side effect.
 
+### Preflight time and storage before producing artifacts
+
+Catch predictable failures before a scheduled job creates partial output. Check
+the complete pipeline, not just the command that produces the main artifact:
+
+- verify the required interpreter, imports, and helper tools before generation;
+- budget for source scanning, production, integrity checks, restore checks,
+  promotion, and any authorized retention step, including cleanup margin;
+- distinguish the runner's enforced wall-clock deadline from per-step limits and
+  inactivity timeouts. Keep one overall deadline rather than renewing it at each
+  phase, and do not raise a shared timeout just to fit one job;
+- check available space on each actual staging and destination filesystem.
+  Account for peak coexistence of existing recovery points, temporary copies,
+  and new output, plus an explicit reserve. Use conservative size estimates or
+  representative measurements, not an assumed compression ratio;
+- recheck capacity before large writes. If the new artifact cannot fit while
+  preserving required recovery points, stop before creating staging or archive
+  files rather than pruning usable backups to make room;
+- run applicable input-independent source or contract checks before generation;
+  keep checks that need the new artifact after generation.
+
+On a failed prerequisite, report the failed phase and stop before the affected
+mutation. Keep measured phase durations and capacity observations in a bounded
+local receipt. A valid manually produced artifact may still fail unattended
+preflight; report artifact validity and scheduled readiness separately.
+
 ### Verify backups before applying retention
 
 A backup file is a candidate, not a recovery point, until its contents are

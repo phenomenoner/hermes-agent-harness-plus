@@ -113,8 +113,9 @@
   search-copy storage and semantic recall.
 - Path: `ops-rules/scheduled-agent-health-checklist.md`
 - Purpose: keep unattended agent jobs quiet on success, specific on failure, and
-  backed by source-level verification, semantic configuration comparisons, and
-  alerts attributed to the layer that actually failed.
+  backed by tool, full-pipeline deadline, and peak-capacity preflight checks,
+  source-level verification, semantic configuration comparisons, and alerts
+  attributed to the layer that actually failed.
 - Path: `ops-rules/sqlite-state-incident-checklist.md`
 - Purpose: investigate active SQLite state stores with bounded read-only probes,
   timeline and ownership evidence, recovery-generation classification, and
